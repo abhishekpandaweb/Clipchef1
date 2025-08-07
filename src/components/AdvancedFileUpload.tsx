@@ -127,19 +127,60 @@ const AdvancedFileUpload: React.FC<AdvancedFileUploadProps> = ({
       
       try {
         console.log('AdvancedFileUpload: Processing file', file.name);
-        const thumbnail = await generateThumbnail(file);
+        
+        // Extract metadata on main thread
+        const video = document.createElement('video');
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = resolve;
+          video.onerror = reject;
+          setTimeout(() => reject(new Error('Metadata loading timeout')), 10000);
+        });
+        
+        // Generate thumbnail on main thread
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 320;
+        canvas.height = (video.videoHeight / video.videoWidth) * 320;
+        video.currentTime = Math.min(5, video.duration / 2);
+        
+        await new Promise((resolve) => {
+          video.onseeked = resolve;
+        });
+        
+        let thumbnail = '';
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          thumbnail = canvas.toDataURL('image/jpeg', 0.8);
+        }
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
         const videoFile: VideoFile = {
           id: Date.now().toString() + Math.random(),
           name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
           originalName: file.name,
           size: file.size,
-          duration: 0, // Will be set after processing
+          duration: video.duration || 0,
           format: file.name.split('.').pop()?.toLowerCase() || '',
           thumbnail,
           url: URL.createObjectURL(file),
           uploadedAt: new Date(),
           status: 'uploading',
-          progress: 0
+          progress: 0,
+          metadata: {
+            duration: video.duration || 0,
+            width: video.videoWidth || 1920,
+            height: video.videoHeight || 1080,
+            fps: 30,
+            bitrate: Math.round(file.size * 8 / (video.duration || 1)),
+            format: file.name.split('.').pop() || 'mp4',
+            size: file.size,
+            aspectRatio: (video.videoWidth || 16) / (video.videoHeight || 9)
+          }
         };
         
         validFiles.push(videoFile);

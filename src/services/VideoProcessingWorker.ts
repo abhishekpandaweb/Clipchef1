@@ -65,94 +65,9 @@ class VideoProcessor {
     }
   }
 
-  async extractMetadata(videoFile: File, jobId: string): Promise<VideoMetadata> {
-    console.log('VideoProcessor: Extracting metadata for', videoFile.name);
-    this.currentJobId = jobId;
-
-    try {
-      // Create video element to extract metadata
-      const video = document.createElement('video');
-      const url = URL.createObjectURL(videoFile);
-      video.src = url;
-      
-      // Wait for metadata to load
-      await new Promise((resolve, reject) => {
-        video.onloadedmetadata = resolve;
-        video.onerror = reject;
-        setTimeout(() => reject(new Error('Metadata loading timeout')), 10000);
-      });
-
-      const metadata: VideoMetadata = {
-        duration: video.duration || 0,
-        width: video.videoWidth || 1920,
-        height: video.videoHeight || 1080,
-        fps: 30, // Default - could be extracted from metadata
-        bitrate: Math.round(videoFile.size * 8 / (video.duration || 1)),
-        format: videoFile.name.split('.').pop() || 'mp4',
-        size: videoFile.size,
-        aspectRatio: (video.videoWidth || 16) / (video.videoHeight || 9)
-      };
-
-      // Clean up
-      URL.revokeObjectURL(url);
-
-      this.postMessage({
-        type: 'progress',
-        jobId,
-        data: { progress: 100, message: 'Metadata extracted successfully' }
-      });
-
-      console.log('VideoProcessor: Metadata extracted', metadata);
-      return metadata;
-    } catch (error) {
-      console.error('VideoProcessor: Metadata extraction failed', error);
-      throw new Error(`Failed to extract metadata: ${error}`);
-    }
-  }
-
-  async generateThumbnail(videoFile: File, timestamp: number, jobId: string): Promise<string> {
-    console.log('VideoProcessor: Generating thumbnail at', timestamp, 'for', videoFile.name);
-    this.currentJobId = jobId;
-
-    try {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const url = URL.createObjectURL(videoFile);
-      
-      video.src = url;
-      
-      await new Promise((resolve, reject) => {
-        video.onloadedmetadata = () => {
-          canvas.width = 320;
-          canvas.height = (video.videoHeight / video.videoWidth) * 320;
-          video.currentTime = Math.max(0, Math.min(timestamp, video.duration - 1));
-        };
-        video.onseeked = resolve;
-        video.onerror = reject;
-        setTimeout(() => reject(new Error('Thumbnail generation timeout')), 10000);
-      });
-
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
-        
-        // Clean up
-        URL.revokeObjectURL(url);
-        
-        console.log('VideoProcessor: Thumbnail generated successfully');
-        return thumbnailUrl;
-      } else {
-        throw new Error('Could not get canvas context');
-      }
-    } catch (error) {
-      console.error('VideoProcessor: Thumbnail generation failed', error);
-      throw new Error(`Failed to generate thumbnail: ${error}`);
-    }
-  }
 
   async detectScenes(
-    videoFile: File, 
+    metadata: VideoMetadata,
     config: SceneDetectionConfig, 
     jobId: string
   ): Promise<DetectedScene[]> {
@@ -160,18 +75,7 @@ class VideoProcessor {
     this.currentJobId = jobId;
 
     try {
-      // Get video duration
-      const video = document.createElement('video');
-      const url = URL.createObjectURL(videoFile);
-      video.src = url;
-      
-      await new Promise((resolve, reject) => {
-        video.onloadedmetadata = resolve;
-        video.onerror = reject;
-        setTimeout(() => reject(new Error('Video loading timeout')), 10000);
-      });
-      
-      const duration = video.duration || 300;
+      const duration = metadata.duration || 300;
       const scenes: DetectedScene[] = [];
       
       // Calculate number of scenes based on config
@@ -194,10 +98,6 @@ class VideoProcessor {
           continue;
         }
 
-        // Generate thumbnail at scene start + 2 seconds
-        const thumbnailTime = Math.min(sceneStart + 2, sceneEnd - 1);
-        const thumbnail = await this.generateThumbnail(videoFile, thumbnailTime, jobId);
-        
         // Generate confidence score based on scene position and duration
         const confidence = Math.min(0.95, 0.6 + (sceneDuration / 60) * 0.3 + Math.random() * 0.1);
         
@@ -207,7 +107,7 @@ class VideoProcessor {
           endTime: sceneEnd,
           duration: sceneDuration,
           confidence,
-          thumbnail,
+          thumbnail: '', // Placeholder - thumbnails generated on main thread
           detectionMethod: 'pixel',
           description: `Scene ${i + 1}: ${Math.round(sceneDuration)}s segment starting at ${Math.round(sceneStart)}s`
         };
@@ -218,6 +118,7 @@ class VideoProcessor {
         this.postMessage({
           type: 'progress',
           jobId,
+          stepId: 'detect-scenes',
           data: { 
             progress,
             message: `Detected scene ${i + 1} of ${numScenes}`
@@ -228,9 +129,6 @@ class VideoProcessor {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Clean up
-      URL.revokeObjectURL(url);
-      
       console.log('VideoProcessor: Scene detection completed', scenes.length, 'scenes');
       return scenes;
     } catch (error) {
@@ -240,7 +138,6 @@ class VideoProcessor {
   }
 
   async generateClip(
-    videoFile: File,
     scene: DetectedScene,
     preset: PlatformPreset,
     jobId: string
@@ -249,24 +146,21 @@ class VideoProcessor {
     this.currentJobId = jobId;
 
     try {
-      // For now, return the original video URL as a placeholder
-      // In a real implementation, this would use FFmpeg.wasm to crop and resize
-      const url = URL.createObjectURL(videoFile);
-      
-      // Generate a thumbnail for the clip
-      const thumbnail = await this.generateThumbnail(videoFile, scene.startTime + 1, jobId);
-
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       this.postMessage({
         type: 'progress',
         jobId,
+        stepId: jobId,
         data: { progress: 100, message: `Generated ${preset.displayName} clip` }
       });
 
       console.log('VideoProcessor: Clip generated successfully');
-      return { url, thumbnail };
+      return { 
+        url: '', // Placeholder - actual clip URL would be generated
+        thumbnail: '' // Placeholder - thumbnail generated on main thread
+      };
     } catch (error) {
       console.error('VideoProcessor: Clip generation failed', error);
       throw new Error(`Failed to generate clip: ${error}`);
@@ -294,36 +188,11 @@ self.onmessage = async (event: MessageEvent) => {
     }
 
     switch (type) {
-      case 'extractMetadata':
-        console.log('VideoProcessingWorker: Starting metadata extraction');
-        const metadata = await processor.extractMetadata(data.videoFile, data.jobId);
-        self.postMessage({
-          type: 'complete',
-          jobId: data.jobId,
-          stepId: data.stepId,
-          data: { metadata }
-        });
-        break;
-
-      case 'generateThumbnail':
-        console.log('VideoProcessingWorker: Starting thumbnail generation');
-        const thumbnail = await processor.generateThumbnail(
-          data.videoFile, 
-          data.timestamp, 
-          data.jobId
-        );
-        self.postMessage({
-          type: 'complete',
-          jobId: data.jobId,
-          stepId: data.stepId,
-          data: { thumbnail }
-        });
-        break;
 
       case 'detectScenes':
         console.log('VideoProcessingWorker: Starting scene detection');
         const scenes = await processor.detectScenes(
-          data.videoFile, 
+          data.metadata,
           data.config, 
           data.jobId
         );
@@ -338,7 +207,6 @@ self.onmessage = async (event: MessageEvent) => {
       case 'generateClip':
         console.log('VideoProcessingWorker: Starting clip generation');
         const clip = await processor.generateClip(
-          data.videoFile,
           data.scene,
           data.preset,
           data.jobId

@@ -195,13 +195,6 @@ export class VideoProcessingService {
     const videoFile = job.videoFile;
 
     switch (step.id) {
-      case 'extract-metadata':
-        console.log('VideoProcessingService: Sending extractMetadata message');
-        this.worker.postMessage({
-          type: 'extractMetadata',
-          data: { videoFile: videoFile, jobId: job.id, stepId: step.id }
-        });
-        break;
 
       case 'detect-scenes':
         console.log('VideoProcessingService: Sending detectScenes message');
@@ -214,7 +207,13 @@ export class VideoProcessingService {
         };
         this.worker.postMessage({
           type: 'detectScenes',
-          data: { videoFile: videoFile, config, jobId: job.id, stepId: step.id }
+          data: { 
+            videoFile: videoFile, 
+            config, 
+            jobId: job.id, 
+            stepId: step.id,
+            metadata: job.metadata
+          }
         });
         break;
 
@@ -396,13 +395,6 @@ export class VideoProcessingService {
       status: 'queued',
       steps: [
         {
-          id: 'extract-metadata',
-          name: 'Extract Metadata',
-          description: 'Analyzing video properties...',
-          progress: 0,
-          status: 'pending'
-        },
-        {
           id: 'detect-scenes',
           name: 'Detect Scenes',
           description: 'Finding optimal clip boundaries...',
@@ -422,6 +414,7 @@ export class VideoProcessingService {
       progress: 0,
       createdAt: new Date(),
       updatedAt: new Date()
+      metadata: videoFile.metadata
     };
 
     this.jobs.set(jobId, job);
