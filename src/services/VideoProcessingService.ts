@@ -14,6 +14,7 @@ export class VideoProcessingService {
   private callbacks = new Map<string, (job: VideoProcessingJob) => void>();
   private workerReady = false;
   private workerReadyPromise: Promise<void> | null = null;
+  private workerReadyResolved = false;
 
   constructor() {
     console.log('VideoProcessingService: Constructor called');
@@ -43,8 +44,11 @@ export class VideoProcessingService {
           // Handle worker ready signal
           if (event.data.type === 'ready' || event.data.type === 'pong') {
             console.log('VideoProcessingService: Worker is ready');
-            this.workerReady = true;
-            resolve();
+            if (!this.workerReadyResolved) {
+              this.workerReady = true;
+              this.workerReadyResolved = true;
+              resolve();
+            }
             return;
           }
           
@@ -53,24 +57,29 @@ export class VideoProcessingService {
 
         this.worker.onerror = (error) => {
           console.error('VideoProcessingService: Worker error', error);
-          this.workerReady = false;
-          reject(error);
+          if (!this.workerReadyResolved) {
+            this.workerReady = false;
+            reject(error);
+          }
         };
         
         this.worker.onmessageerror = (error) => {
           console.error('VideoProcessingService: Worker message error', error);
-          reject(error);
+          if (!this.workerReadyResolved) {
+            reject(error);
+          }
         };
         
         // Set a timeout in case worker doesn't respond
         setTimeout(() => {
-          if (!this.workerReady) {
+          if (!this.workerReady && !this.workerReadyResolved) {
             console.log('VideoProcessingService: Worker ready timeout, pinging worker');
             this.worker?.postMessage({ type: 'ping', data: {} });
             
             // Give it another chance
             setTimeout(() => {
-              if (!this.workerReady) {
+              if (!this.workerReady && !this.workerReadyResolved) {
+                this.workerReadyResolved = true;
                 reject(new Error('Worker initialization timeout'));
               }
             }, 2000);
