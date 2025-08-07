@@ -413,7 +413,7 @@ export class VideoProcessingService {
       clips: [],
       progress: 0,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
       metadata: videoFile.metadata
     };
 
