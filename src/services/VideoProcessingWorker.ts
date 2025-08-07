@@ -182,6 +182,17 @@ self.onmessage = async (event: MessageEvent) => {
   const { type, data } = event.data;
   console.log('VideoProcessingWorker: Received message', type, data);
 
+  // Handle worker ready check
+  if (type === 'ping') {
+    self.postMessage({
+      type: 'pong',
+      jobId: 'init',
+      stepId: 'init',
+      data: { ready: true }
+    });
+    return;
+  }
+
   try {
     if (!processor) {
       processor = new VideoProcessor();
@@ -246,3 +257,11 @@ self.onmessage = async (event: MessageEvent) => {
 };
 
 console.log('VideoProcessingWorker: Initialization complete');
+
+// Signal that worker is ready
+self.postMessage({
+  type: 'ready',
+  jobId: 'init',
+  stepId: 'init',
+  data: { ready: true }
+});

@@ -12,44 +12,78 @@ export class VideoProcessingService {
   private worker: Worker | null = null;
   private jobs = new Map<string, VideoProcessingJob>();
   private callbacks = new Map<string, (job: VideoProcessingJob) => void>();
-  private workerInitialized = false;
+  private workerReady = false;
+  private workerReadyPromise: Promise<void> | null = null;
 
   constructor() {
     console.log('VideoProcessingService: Constructor called');
     this.initializeWorker();
   }
 
-  private initializeWorker() {
-    console.log('VideoProcessingService: Initializing worker');
-    try {
-      // Create worker using Vite's worker import
-      this.worker = new Worker(
-        new URL('./VideoProcessingWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
-      
-      console.log('VideoProcessingService: Worker created successfully');
-
-      this.worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-        console.log('VideoProcessingService: Received worker message', event.data);
-        this.handleWorkerMessage(event.data);
-      };
-
-      this.worker.onerror = (error) => {
-        console.error('VideoProcessingService: Worker error', error);
-        this.workerInitialized = false;
-      };
-      
-      this.worker.onmessageerror = (error) => {
-        console.error('VideoProcessingService: Worker message error', error);
-      };
-      
-      this.workerInitialized = true;
-      console.log('VideoProcessingService: Worker initialized successfully');
-    } catch (error) {
-      console.error('VideoProcessingService: Failed to initialize worker', error);
-      this.workerInitialized = false;
+  private initializeWorker(): Promise<void> {
+    if (this.workerReadyPromise) {
+      return this.workerReadyPromise;
     }
+
+    console.log('VideoProcessingService: Initializing worker');
+    
+    this.workerReadyPromise = new Promise((resolve, reject) => {
+      try {
+        // Create worker using Vite's worker import
+        this.worker = new Worker(
+          new URL('./VideoProcessingWorker.ts', import.meta.url),
+          { type: 'module' }
+        );
+        
+        console.log('VideoProcessingService: Worker created successfully');
+
+        this.worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+          console.log('VideoProcessingService: Received worker message', event.data);
+          
+          // Handle worker ready signal
+          if (event.data.type === 'ready' || event.data.type === 'pong') {
+            console.log('VideoProcessingService: Worker is ready');
+            this.workerReady = true;
+            resolve();
+            return;
+          }
+          
+          this.handleWorkerMessage(event.data);
+        };
+
+        this.worker.onerror = (error) => {
+          console.error('VideoProcessingService: Worker error', error);
+          this.workerReady = false;
+          reject(error);
+        };
+        
+        this.worker.onmessageerror = (error) => {
+          console.error('VideoProcessingService: Worker message error', error);
+          reject(error);
+        };
+        
+        // Set a timeout in case worker doesn't respond
+        setTimeout(() => {
+          if (!this.workerReady) {
+            console.log('VideoProcessingService: Worker ready timeout, pinging worker');
+            this.worker?.postMessage({ type: 'ping', data: {} });
+            
+            // Give it another chance
+            setTimeout(() => {
+              if (!this.workerReady) {
+                reject(new Error('Worker initialization timeout'));
+              }
+            }, 2000);
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('VideoProcessingService: Failed to create worker', error);
+        reject(error);
+      }
+    });
+
+    return this.workerReadyPromise;
   }
 
   private handleWorkerMessage(message: WorkerMessage) {
@@ -186,7 +220,7 @@ export class VideoProcessingService {
 
   private executeStep(job: VideoProcessingJob, step: ProcessingStep) {
     console.log('VideoProcessingService: Executing step', step.id, 'for job', job.id);
-    if (!this.worker || !this.workerInitialized) {
+    if (!this.worker || !this.workerReady) {
       console.error('VideoProcessingService: Worker not available for step execution');
       this.handleStepError(job, step.id, { error: 'Worker not available' });
       return;
@@ -375,16 +409,16 @@ export class VideoProcessingService {
   ): Promise<string> {
     console.log('VideoProcessingService: Starting video processing for', videoFile.name);
     
-    if (!this.worker || !this.workerInitialized) {
+    // Ensure worker is ready before processing
+    try {
+      await this.initializeWorker();
+    } catch (error) {
       console.error('VideoProcessingService: Worker not initialized, reinitializing...');
-      this.initializeWorker();
-      
-      // Wait a bit for worker to initialize
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (!this.worker || !this.workerInitialized) {
-        throw new Error('Failed to initialize video processing worker');
-      }
+      throw new Error('Failed to initialize video processing worker');
+    }
+    
+    if (!this.worker || !this.workerReady) {
+      throw new Error('Worker not available after initialization');
     }
     
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
