@@ -79,6 +79,7 @@ const Dashboard: React.FC = () => {
       message: `Creating ${scenes.length * platforms.length} clips for ${platforms.length} platforms`,
       duration: 3000
     });
+  }, [selectedJobData, generateClipsForJob, addToast]);
   }, [addToast]);
 
   const stats = [

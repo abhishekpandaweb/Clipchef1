@@ -553,6 +553,90 @@ export class VideoProcessingService {
     this.jobs.clear();
     this.callbacks.clear();
   }
+
+  generateClipsForJob(jobId: string, scenes: DetectedScene[], platforms: string[]): void {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      console.error('VideoProcessingService: Job not found for clip generation', jobId);
+      return;
+    }
+
+    console.log('VideoProcessingService: Starting clip generation for job', jobId, scenes.length, 'scenes');
+    
+    // Update job with new scenes
+    job.scenes = scenes;
+    job.clips = [];
+    
+    // Filter platforms to only include selected ones
+    const allPresets = this.getPlatformPresets();
+    const selectedPresets = allPresets.filter(preset => platforms.includes(preset.id));
+    
+    // Generate clips for selected platforms only
+    this.generateClipsForPlatforms(job, selectedPresets);
+  }
+
+  private generateClipsForPlatforms(job: VideoProcessingJob, platforms: PlatformPreset[]) {
+    console.log('VideoProcessingService: Generating clips for selected platforms', platforms.map(p => p.displayName));
+    
+    if (job.scenes.length === 0) {
+      console.warn('VideoProcessingService: No scenes available for clip generation');
+      return;
+    }
+    
+    let totalClips = 0;
+    
+    job.scenes.forEach(scene => {
+      platforms.forEach(preset => {
+        const clipJob: ClipGenerationJob = {
+          id: `clip_${scene.id}_${preset.id}`,
+          videoId: job.videoFile.id,
+          sceneId: scene.id,
+          platform: preset.id,
+          preset,
+          status: 'pending',
+          progress: 0,
+          createdAt: new Date()
+        };
+
+        job.clips.push(clipJob);
+        totalClips++;
+
+        // Mark clip as processing
+        clipJob.status = 'processing';
+
+        // Start clip generation
+        if (this.worker) {
+          console.log('VideoProcessingService: Sending generateClip message for', preset.displayName);
+          this.worker.postMessage({
+            type: 'generateClip',
+            data: {
+              scene,
+              preset,
+              jobId: clipJob.id,
+              stepId: clipJob.id
+            }
+          });
+        }
+      });
+    });
+    
+    console.log('VideoProcessingService: Started generation of', totalClips, 'clips');
+    
+    // Update the generate-clips step
+    const step = job.steps.find(s => s.id === 'generate-clips');
+    if (step) {
+      step.status = 'active';
+      step.progress = 0;
+      step.startTime = new Date();
+    }
+
+    // Update job progress and notify callback
+    job.updatedAt = new Date();
+    const callback = this.callbacks.get(job.id);
+    if (callback) {
+      callback(job);
+    }
+  }
 }
 
 // Singleton instance
