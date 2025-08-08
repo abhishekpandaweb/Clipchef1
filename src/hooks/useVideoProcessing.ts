@@ -120,13 +120,6 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
     ? jobs.reduce((sum, job) => sum + job.progress, 0) / jobs.length 
     : 0;
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      videoProcessingService.cleanup();
-    };
-  }, []);
-
   return {
     jobs,
     activeJobs,
