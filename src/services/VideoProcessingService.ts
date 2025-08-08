@@ -168,28 +168,53 @@ export class VideoProcessingService {
 
     if (data.scenes) {
       job.scenes = data.scenes;
+      console.log('VideoProcessingService: Updated job with', data.scenes.length, 'scenes');
     }
 
     if (data.clip) {
       // Update clip job
       const clipJob = job.clips.find(c => c.id === stepId);
       if (clipJob) {
+        console.log('VideoProcessingService: Updating clip job', clipJob.id, 'with output');
         clipJob.status = 'completed';
         clipJob.outputUrl = data.clip.url;
         clipJob.thumbnail = data.clip.thumbnail;
         clipJob.completedAt = new Date();
+        clipJob.progress = 100;
       }
     }
 
-    // Check if job is complete
-    const allStepsComplete = job.steps.every(s => s.status === 'completed');
-    if (allStepsComplete) {
+    // Check if all clips are complete for generate-clips step
+    if (stepId && stepId.startsWith('clip_')) {
+      const allClipsComplete = job.clips.every(c => c.status === 'completed');
+      if (allClipsComplete && job.clips.length > 0) {
+        console.log('VideoProcessingService: All clips completed, marking generate-clips step as complete');
+        const generateClipsStep = job.steps.find(s => s.id === 'generate-clips');
+        if (generateClipsStep) {
+          generateClipsStep.status = 'completed';
+          generateClipsStep.progress = 100;
+          generateClipsStep.endTime = new Date();
+        }
+      }
+    }
+
+    // Check if all main steps are complete
+    const allMainStepsComplete = job.steps.every(s => s.status === 'completed');
+    if (allMainStepsComplete) {
       console.log('VideoProcessingService: Job completed', job.id);
       job.status = 'completed';
       job.progress = 100;
     } else {
       // Start next step
       this.startNextStep(job);
+      
+      // Update progress for generate-clips step based on completed clips
+      const generateClipsStep = job.steps.find(s => s.id === 'generate-clips' && s.status === 'active');
+      if (generateClipsStep && job.clips.length > 0) {
+        const completedClips = job.clips.filter(c => c.status === 'completed').length;
+        generateClipsStep.progress = (completedClips / job.clips.length) * 100;
+        console.log('VideoProcessingService: Updated generate-clips progress:', generateClipsStep.progress);
+      }
     }
 
     job.updatedAt = new Date();
@@ -296,7 +321,6 @@ export class VideoProcessingService {
     
     const platforms = this.getPlatformPresets();
     let totalClips = 0;
-    let completedClips = 0;
     
     job.scenes.forEach(scene => {
       platforms.forEach(preset => {
@@ -314,13 +338,15 @@ export class VideoProcessingService {
         job.clips.push(clipJob);
         totalClips++;
 
+        // Mark clip as processing
+        clipJob.status = 'processing';
+
         // Start clip generation
         if (this.worker) {
           console.log('VideoProcessingService: Sending generateClip message for', preset.displayName);
           this.worker.postMessage({
             type: 'generateClip',
             data: {
-              videoFile: job.videoFile,
               scene,
               preset,
               jobId: clipJob.id,
@@ -338,6 +364,13 @@ export class VideoProcessingService {
     if (step) {
       step.status = 'active';
       step.progress = 0;
+    }
+
+    // Update job progress
+    job.updatedAt = new Date();
+    const callback = this.callbacks.get(job.id);
+    if (callback) {
+      callback(job);
     }
   }
 

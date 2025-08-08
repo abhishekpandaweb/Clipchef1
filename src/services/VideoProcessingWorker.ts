@@ -107,7 +107,7 @@ class VideoProcessor {
           endTime: sceneEnd,
           duration: sceneDuration,
           confidence,
-          thumbnail: '', // Placeholder - thumbnails generated on main thread
+          thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#6b7280">Scene ${i + 1}</text></svg>`)}`,
           detectionMethod: 'pixel',
           description: `Scene ${i + 1}: ${Math.round(sceneDuration)}s segment starting at ${Math.round(sceneStart)}s`
         };
@@ -146,8 +146,16 @@ class VideoProcessor {
     this.currentJobId = jobId;
 
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Simulate processing time with progress updates
+      for (let progress = 0; progress <= 100; progress += 20) {
+        this.postMessage({
+          type: 'progress',
+          jobId,
+          stepId: jobId,
+          data: { progress, message: `Generating ${preset.displayName} clip: ${progress}%` }
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
 
       this.postMessage({
         type: 'progress',
@@ -158,8 +166,8 @@ class VideoProcessor {
 
       console.log('VideoProcessor: Clip generated successfully');
       return { 
-        url: '', // Placeholder - actual clip URL would be generated
-        thumbnail: '' // Placeholder - thumbnail generated on main thread
+        url: `blob:${preset.id}_${scene.id}_clip.mp4`, // Simulated clip URL
+        thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="${preset.width}" height="${preset.height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="24">${preset.displayName}</text></svg>`)}`
       };
     } catch (error) {
       console.error('VideoProcessor: Clip generation failed', error);
