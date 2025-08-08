@@ -52,15 +52,33 @@ const Dashboard: React.FC = () => {
   }, [selectedJob]);
 
   const handleGenerateClips = useCallback((scenes: DetectedScene[], platforms: string[]) => {
+    if (!selectedJobData) {
+      addToast({
+        type: 'error',
+        title: 'No Job Selected',
+        message: 'Please select a job to generate clips for',
+        duration: 3000
+      });
+      return;
+    }
+
+    // Update the job with new scenes and trigger clip generation
+    const updatedJob = {
+      ...selectedJobData,
+      scenes: scenes,
+      clips: [] // Reset clips to regenerate
+    };
+
+    // Start clip generation by updating the job and triggering the generate-clips step
+    const { generateClipsForJob } = useVideoProcessing();
+    generateClipsForJob(updatedJob.id, scenes, platforms);
+
     addToast({
       type: 'info',
       title: 'Generating Clips',
       message: `Creating ${scenes.length * platforms.length} clips for ${platforms.length} platforms`,
       duration: 3000
     });
-    
-    // This would trigger clip generation in the processing service
-    console.log('Generating clips:', { scenes, platforms });
   }, [addToast]);
 
   const stats = [

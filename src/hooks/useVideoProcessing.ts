@@ -15,6 +15,7 @@ export interface UseVideoProcessingReturn {
   getJob: (jobId: string) => VideoProcessingJob | undefined;
   clearCompletedJobs: () => void;
   totalProgress: number;
+  generateClipsForJob: (jobId: string, scenes: DetectedScene[], platforms: string[]) => void;
 }
 
 export const useVideoProcessing = (): UseVideoProcessingReturn => {
@@ -107,6 +108,51 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
     });
   }, [addToast]);
 
+  const generateClipsForJob = useCallback((jobId: string, scenes: DetectedScene[], platforms: string[]) => {
+    const job = jobsRef.current.get(jobId);
+    if (!job) {
+      addToast({
+        type: 'error',
+        title: 'Job Not Found',
+        message: 'Could not find the selected job',
+        duration: 3000
+      });
+      return;
+    }
+
+    // Update job with new scenes and reset clips
+    job.scenes = scenes;
+    job.clips = [];
+    job.status = 'processing';
+    job.progress = 50; // Scene detection already done, start at 50%
+    job.updatedAt = new Date();
+
+    // Reset the generate-clips step
+    const generateClipsStep = job.steps.find(s => s.id === 'generate-clips');
+    if (generateClipsStep) {
+      generateClipsStep.status = 'pending';
+      generateClipsStep.progress = 0;
+      generateClipsStep.startTime = undefined;
+      generateClipsStep.endTime = undefined;
+      generateClipsStep.error = undefined;
+    }
+
+    // Update the job in the map and trigger update
+    jobsRef.current.set(jobId, job);
+    setJobs(Array.from(jobsRef.current.values()));
+    updateJob(job);
+
+    // Trigger clip generation in the service
+    videoProcessingService.generateClipsForJob(jobId, scenes, platforms);
+
+    addToast({
+      type: 'info',
+      title: 'Clip Generation Started',
+      message: `Generating clips for ${scenes.length} scenes across ${platforms.length} platforms`,
+      duration: 3000
+    });
+  }, [updateJob, addToast]);
+
   // Computed values
   const activeJobs = jobs.filter(job => 
     job.status === 'processing' || job.status === 'queued'
@@ -131,6 +177,7 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
     retryJob,
     getJob,
     clearCompletedJobs,
-    totalProgress
+    totalProgress,
+    generateClipsForJob
   };
 };
