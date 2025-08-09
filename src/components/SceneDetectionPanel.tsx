@@ -272,7 +272,7 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
       {/* Scene Grid */}
       <div className="p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {scenes.map((scene) => (
+          {scenes.filter(s => s != null).map((scene) => (
             <div
               key={scene.id}
               className={`relative bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden border-2 transition-all duration-200 cursor-pointer ${
