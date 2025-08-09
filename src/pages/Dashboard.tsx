@@ -13,7 +13,7 @@ import { Video, Upload, Scissors } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
   const {
     jobs,
     isProcessing,
