@@ -23,7 +23,8 @@ const AdvancedFileUpload: React.FC<AdvancedFileUploadProps> = ({
   const validateFile = (file: File): string | null => {
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
-    if (!fileExtension || !acceptedFormats.includes(fileExtension)) {
+    // Check if it's a video file
+    if (!file.type.startsWith('video/')) {
       return `Unsupported format. Please use: ${acceptedFormats.join(', ')}`;
     }
     
@@ -302,7 +303,7 @@ const AdvancedFileUpload: React.FC<AdvancedFileUploadProps> = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept={acceptedFormats.map(format => `.${format}`).join(',')}
+            accept="video/*"
             onChange={handleFileSelect}
             className="hidden"
           />
