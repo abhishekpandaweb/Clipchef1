@@ -345,7 +345,7 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
               <div className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Scene {scene.id.split('_')[1]}
+                    Scene {scene.id && typeof scene.id === 'string' && scene.id.includes('_') ? scene.id.split('_')[1] : 'N/A'}
                   </span>
                   <span className="text-xs">
                     {getDetectionMethodIcon(scene.detectionMethod)}
