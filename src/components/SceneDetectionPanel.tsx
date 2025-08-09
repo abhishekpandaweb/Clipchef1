@@ -13,6 +13,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { DetectedScene, SceneDetectionConfig, PlatformPreset } from '../types/video';
+import { useToast } from '../contexts/ToastContext';
 
 interface SceneDetectionPanelProps {
   scenes: DetectedScene[];
@@ -38,6 +39,7 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
     minSceneDuration: 5,
     maxScenes: 10
   });
+  const { addToast } = useToast();
 
   const platforms: PlatformPreset[] = [
     {

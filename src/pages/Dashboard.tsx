@@ -110,8 +110,8 @@ export const Dashboard: React.FC = () => {
               </div>
               <AdvancedFileUpload
                 onFileUpload={handleFileUpload}
-                acceptedFormats={['video/*']}
-                maxFileSize={500 * 1024 * 1024} // 500MB
+                acceptedFormats={['mp4', 'mov', 'avi', 'webm', 'mkv']}
+                maxFileSize={500}
               />
             </div>
 

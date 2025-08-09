@@ -91,6 +91,7 @@ const VideoProcessingQueue: React.FC<VideoProcessingQueueProps> = ({ className =
   const renderJobCard = (job: VideoProcessingJob) => {
     const isExpanded = expandedJobs.has(job.id);
     const currentStep = job.steps.find(s => s.status === 'active');
+    const currentStepName = currentStep?.name || job.status;
 
     return (
       <div key={job.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
@@ -146,10 +147,7 @@ const VideoProcessingQueue: React.FC<VideoProcessingQueueProps> = ({ className =
                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                   : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
               }`}>
-                {job.status === 'processing' && currentStep 
-                  ? currentStep.name 
-                  : job.status.charAt(0).toUpperCase() + job.status.slice(1)
-                }
+                {currentStepName.charAt(0).toUpperCase() + currentStepName.slice(1)}
               </div>
 
               {/* Action Buttons */}

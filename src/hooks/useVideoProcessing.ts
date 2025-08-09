@@ -47,7 +47,8 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
 
   const processVideo = useCallback(async (videoFile: VideoFile): Promise<string> => {
     try {
-      const jobId = await videoProcessingService.processVideo(videoFile, updateJob);
+      console.log('useVideoProcessing: Starting video processing for', videoFile.name);
+      const job = await videoProcessingService.processVideo(videoFile, updateJob);
       
       addToast({
         type: 'info',
@@ -56,7 +57,7 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
         duration: 3000
       });
 
-      return jobId;
+      return job;
     } catch (error) {
       addToast({
         type: 'error',
@@ -111,6 +112,7 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
   const generateClipsForJob = useCallback((jobId: string, scenes: DetectedScene[], platforms: string[]) => {
     const job = jobsRef.current.get(jobId);
     if (!job) {
+      console.error('useVideoProcessing: Job not found for clip generation', jobId);
       addToast({
         type: 'error',
         title: 'Job Not Found',
@@ -124,10 +126,8 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
     job.scenes = scenes;
     job.clips = [];
     job.status = 'processing';
-    job.progress = 50; // Scene detection already done, start at 50%
-    job.updatedAt = new Date();
-
-    // Reset the generate-clips step
+    
+    // Find and reset the generate-clips step
     const generateClipsStep = job.steps.find(s => s.id === 'generate-clips');
     if (generateClipsStep) {
       generateClipsStep.status = 'pending';
@@ -136,14 +136,18 @@ export const useVideoProcessing = (): UseVideoProcessingReturn => {
       generateClipsStep.endTime = undefined;
       generateClipsStep.error = undefined;
     }
+    
+    job.updatedAt = new Date();
 
     // Update the job in the map and trigger update
     jobsRef.current.set(jobId, job);
     setJobs(Array.from(jobsRef.current.values()));
-    updateJob(job);
 
     // Trigger clip generation in the service
     videoProcessingService.generateClipsForJob(jobId, scenes, platforms);
+    
+    // Update the job after triggering clip generation
+    updateJob(job);
 
     addToast({
       type: 'info',

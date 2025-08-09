@@ -448,7 +448,7 @@ export class VideoProcessingService {
   async processVideo(
     videoFile: VideoFile, 
     callback: (job: VideoProcessingJob) => void
-  ): Promise<string> {
+  ): Promise<VideoProcessingJob> {
     console.log('VideoProcessingService: Starting video processing for', videoFile.name);
     
     // Ensure worker is ready before processing
@@ -499,9 +499,13 @@ export class VideoProcessingService {
     // Start processing
     job.status = 'processing';
     console.log('VideoProcessingService: Job created and starting processing', jobId);
+    
+    // Notify callback immediately with the created job
+    callback(job);
+    
     this.startNextStep(job);
 
-    return jobId;
+    return job;
   }
 
   getJob(jobId: string): VideoProcessingJob | undefined {

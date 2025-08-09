@@ -79,9 +79,18 @@ class VideoProcessor {
       const scenes: DetectedScene[] = [];
       
       // Calculate number of scenes based on config
-      const minScenes = Math.max(2, Math.floor(duration / 60)); // At least 2 scenes, 1 per minute
-      const maxScenes = Math.min(config.maxScenes, Math.floor(duration / config.minSceneDuration));
-      const numScenes = Math.min(maxScenes, Math.max(minScenes, Math.floor(duration / 30))); // Aim for 1 scene per 30s
+      let numScenes: number;
+      
+      switch (config.sensitivity) {
+        case 'high':
+          numScenes = Math.min(config.maxScenes, Math.floor(duration / config.minSceneDuration));
+          break;
+        case 'low':
+          numScenes = Math.max(2, Math.min(config.maxScenes, Math.floor(duration / 60)));
+          break;
+        default: // medium
+          numScenes = Math.min(config.maxScenes, Math.max(3, Math.floor(duration / 30)));
+      }
 
       console.log(`VideoProcessor: Creating ${numScenes} scenes for ${duration}s video`);
 
@@ -107,7 +116,7 @@ class VideoProcessor {
           endTime: sceneEnd,
           duration: sceneDuration,
           confidence,
-          thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#6b7280">Scene ${i + 1}</text></svg>`)}`,
+          thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="16" font-family="Arial">Scene ${i + 1}</text><text x="50%" y="70%" text-anchor="middle" dy=".3em" fill="white" font-size="12" font-family="Arial">${Math.round(sceneStart)}s - ${Math.round(sceneEnd)}s</text></svg>`)}`,
           detectionMethod: 'pixel',
           description: `Scene ${i + 1}: ${Math.round(sceneDuration)}s segment starting at ${Math.round(sceneStart)}s`
         };
