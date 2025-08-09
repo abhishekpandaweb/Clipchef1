@@ -7,7 +7,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import LandingPage from './pages/LandingPage';
-import Dashboard from './pages/Dashboard';
+import { Dashboard } from './pages/Dashboard';
 import Pricing from './pages/Pricing';
 import About from './pages/About';
 import Login from './pages/Login';
