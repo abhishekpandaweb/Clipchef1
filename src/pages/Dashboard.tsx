@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useVideoProcessing } from '../hooks/useVideoProcessing';
-import { AdvancedFileUpload } from '../components/AdvancedFileUpload';
+import AdvancedFileUpload from '../components/AdvancedFileUpload';
 import { VideoProcessingQueue } from '../components/VideoProcessingQueue';
 import { SceneDetectionPanel } from '../components/SceneDetectionPanel';
 import { Breadcrumb } from '../components/Breadcrumb';
