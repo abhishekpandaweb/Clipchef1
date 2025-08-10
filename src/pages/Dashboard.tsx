@@ -64,7 +64,7 @@ export const Dashboard: React.FC = () => {
     }
 
     try {
-      const sceneIds = scenes.filter(s => s != null).map(scene => scene.id);
+      const sceneIds = scenes.filter(s => s != null && s.id != null).map(scene => scene.id);
       console.log('Dashboard: Generating clips for scenes:', sceneIds, 'platforms:', platforms);
       await generateClipsForJob(selectedJob.id, sceneIds, platforms);
       addToast('Clip generation started!', 'success');
