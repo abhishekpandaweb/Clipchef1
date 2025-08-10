@@ -356,12 +356,34 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${getConfidenceColor(scene.confidence)}`}>
                     {Math.round(scene.confidence * 100)}% confidence
                   </span>
+                  {scene.viralPotential && (
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
+                      🔥 {Math.round(scene.viralPotential * 100)}% viral
+                    </span>
+                  )}
                 </div>
 
                 {scene.description && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
                     {scene.description}
                   </p>
+                )}
+                
+                {/* Enhanced Scene Metrics */}
+                {scene.detectionMethods && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {Object.entries(scene.detectionMethods)
+                      .filter(([_, score]) => score > 0)
+                      .slice(0, 2)
+                      .map(([method, score]) => (
+                        <span
+                          key={method}
+                          className="text-xs px-1 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded"
+                        >
+                          {method.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                        </span>
+                      ))}
+                  </div>
                 )}
               </div>
             </div>
