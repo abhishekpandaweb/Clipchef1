@@ -11,10 +11,37 @@ export interface VideoMetadata {
 
 export interface SceneDetectionConfig {
   sensitivity: 'low' | 'medium' | 'high';
-  pixelThreshold: number;
-  audioThreshold: number;
+  algorithms: {
+    pixelDifference: {
+      enabled: boolean;
+      threshold: number;
+      weight: number;
+    };
+    audioAmplitude: {
+      enabled: boolean;
+      threshold: number;
+      weight: number;
+    };
+    colorHistogram: {
+      enabled: boolean;
+      threshold: number;
+      weight: number;
+    };
+    motionVector: {
+      enabled: boolean;
+      threshold: number;
+      weight: number;
+    };
+    faceDetection: {
+      enabled: boolean;
+      speakerChangeThreshold: number;
+      weight: number;
+    };
+  };
   minSceneDuration: number;
   maxScenes: number;
+  preserveContext: boolean;
+  maintainNarrativeFlow: boolean;
 }
 
 export interface DetectedScene {
@@ -25,7 +52,24 @@ export interface DetectedScene {
   confidence: number;
   thumbnail: string;
   description?: string;
-  detectionMethod: 'pixel' | 'audio' | 'histogram' | 'motion';
+  detectionMethods: {
+    pixelDifference: number;
+    audioAmplitude: number;
+    colorHistogram: number;
+    motionVector: number;
+    faceDetection: number;
+  };
+  contextScore: number;
+  narrativeImportance: number;
+  viralPotential: number;
+  speakers: string[];
+  dominantColors: string[];
+  motionLevel: 'low' | 'medium' | 'high';
+  audioFeatures: {
+    averageAmplitude: number;
+    speechRatio: number;
+    musicRatio: number;
+  };
 }
 
 export interface PlatformPreset {
@@ -36,8 +80,21 @@ export interface PlatformPreset {
   width: number;
   height: number;
   maxDuration: number;
-  cropStrategy: 'center' | 'smart' | 'face-detection';
+  cropStrategy: 'center' | 'smart' | 'face-tracking' | 'action-following' | 'speaker-focus';
   audioRequired: boolean;
+  optimizations: {
+    hookDuration: number; // seconds for opening hook
+    engagementBoosts: string[]; // captions, effects, etc.
+    algorithmFriendly: boolean;
+    trendingFormats: string[];
+    captionStyle: 'minimal' | 'engaging' | 'professional' | 'trendy';
+  };
+  contentGuidelines: {
+    preferredLength: number;
+    idealPacing: 'fast' | 'medium' | 'slow';
+    attentionSpan: number; // seconds
+    viralElements: string[];
+  };
 }
 
 export interface ClipGenerationJob {

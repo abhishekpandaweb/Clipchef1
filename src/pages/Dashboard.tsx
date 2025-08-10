@@ -4,12 +4,15 @@ import { useVideoProcessing } from '../hooks/useVideoProcessing';
 import AdvancedFileUpload from '../components/AdvancedFileUpload';
 import VideoProcessingQueue from '../components/VideoProcessingQueue';
 import SceneDetectionPanel from '../components/SceneDetectionPanel';
+import AIModelPanel from '../components/AIModelPanel';
+import AdvancedSceneDetectionPanel from '../components/AdvancedSceneDetectionPanel';
+import PlatformOptimizationPanel from '../components/PlatformOptimizationPanel';
 import Breadcrumb from '../components/Breadcrumb';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../contexts/ToastContext';
-import { VideoProcessingJob, VideoFile, DetectedScene } from '../types';
-import { Video, Upload, Scissors } from 'lucide-react';
+import { VideoProcessingJob, VideoFile, DetectedScene, SceneDetectionConfig } from '../types';
+import { Video, Upload, Scissors, Brain, Target, Zap } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +27,21 @@ export const Dashboard: React.FC = () => {
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['tiktok', 'instagram-reels']);
+  const [sceneConfig, setSceneConfig] = useState<SceneDetectionConfig>({
+    sensitivity: 'medium',
+    algorithms: {
+      pixelDifference: { enabled: true, threshold: 0.3, weight: 1.0 },
+      audioAmplitude: { enabled: true, threshold: 0.2, weight: 0.8 },
+      colorHistogram: { enabled: true, threshold: 0.4, weight: 0.7 },
+      motionVector: { enabled: true, threshold: 0.5, weight: 0.9 },
+      faceDetection: { enabled: true, speakerChangeThreshold: 0.6, weight: 1.2 }
+    },
+    minSceneDuration: 5,
+    maxScenes: 15,
+    preserveContext: true,
+    maintainNarrativeFlow: true
+  });
 
   const selectedJob = selectedJobId ? jobs.find(job => job.id === selectedJobId) : null;
 
@@ -74,6 +92,13 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handlePlatformToggle = (platformId: string) => {
+    setSelectedPlatforms(prev => 
+      prev.includes(platformId)
+        ? prev.filter(id => id !== platformId)
+        : [...prev, platformId]
+    );
+  };
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/dashboard' }
   ];
@@ -87,22 +112,26 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumb items={breadcrumbItems} />
         
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.email}
+            Welcome to ClipChef AI
           </h1>
           <p className="text-gray-600">
-            Upload videos and generate clips for social media platforms
+            Revolutionary browser-based AI video editing • Zero-server processing • Complete privacy
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Upload Section */}
-          <div className="lg:col-span-1">
+          <div className="xl:col-span-1 space-y-6">
+            {/* AI Models */}
+            <AIModelPanel />
+            
+            {/* Upload */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center mb-4">
                 <Upload className="w-5 h-5 text-blue-600 mr-2" />
@@ -114,40 +143,43 @@ export const Dashboard: React.FC = () => {
                 maxFileSize={500}
               />
             </div>
-
-            {/* Processing Queue */}
-            {jobs.length > 0 && (
-              <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <Video className="w-5 h-5 text-green-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Processing Queue</h2>
-                </div>
-                <VideoProcessingQueue
-                />
-              </div>
-            )}
           </div>
 
-          {/* Scene Detection and Clips */}
-          <div className="lg:col-span-2">
+          {/* AI Configuration */}
+          <div className="xl:col-span-1 space-y-6">
+            {/* Advanced Scene Detection */}
+            <AdvancedSceneDetectionPanel
+              config={sceneConfig}
+              onConfigChange={setSceneConfig}
+            />
+            
+            {/* Platform Optimization */}
+            <PlatformOptimizationPanel
+              selectedPlatforms={selectedPlatforms}
+              onPlatformToggle={handlePlatformToggle}
+            />
+          </div>
+
+          {/* Processing & Results */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Processing Queue */}
+            {jobs.length > 0 && (
+              <VideoProcessingQueue />
+            )}
+            
+            {/* Scene Detection Results */}
             {selectedJob ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <Scissors className="w-5 h-5 text-purple-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Scene Detection & Clips</h2>
-                </div>
-                <SceneDetectionPanel
-                  scenes={selectedJob.scenes || []}
-                  onGenerateClips={handleGenerateClips}
-                  onScenesUpdate={() => {}}
-                />
-              </div>
+              <SceneDetectionPanel
+                scenes={selectedJob.scenes || []}
+                onGenerateClips={(scenes) => handleGenerateClips(scenes, selectedPlatforms)}
+                onScenesUpdate={() => {}}
+              />
             ) : (
               <EmptyState
-                icon={Video}
-                title="No video selected"
-                description="Upload a video or select one from the processing queue to view scenes and generate clips."
-                actionText="Upload Video"
+                icon={Brain}
+                title="Ready for AI Processing"
+                description="Upload a video to start the revolutionary AI-powered scene detection and clip generation process. All processing happens locally in your browser for complete privacy."
+                actionText="Upload Your First Video"
                 onAction={() => {
                   // Focus on upload area
                   const uploadElement = document.querySelector('[data-testid="file-upload"]');
@@ -157,6 +189,45 @@ export const Dashboard: React.FC = () => {
                 }}
               />
             )}
+          </div>
+        </div>
+        
+        {/* Feature Highlights */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-lg">
+            <div className="flex items-center space-x-3 mb-3">
+              <Brain className="h-8 w-8 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Zero-Server AI
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              Complete browser-based processing with WebLLM and Whisper.cpp. Your videos never leave your device.
+            </p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-lg">
+            <div className="flex items-center space-x-3 mb-3">
+              <Zap className="h-8 w-8 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Multi-Algorithm Detection
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              5 advanced algorithms working together: pixel analysis, audio detection, color histograms, motion vectors, and face recognition.
+            </p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-lg">
+            <div className="flex items-center space-x-3 mb-3">
+              <Target className="h-8 w-8 text-green-600" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Platform Optimization
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              AI-powered optimization for TikTok, Instagram, YouTube Shorts, LinkedIn, and more with viral potential scoring.
+            </p>
           </div>
         </div>
       </div>

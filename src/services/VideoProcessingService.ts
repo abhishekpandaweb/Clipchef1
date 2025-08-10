@@ -266,18 +266,45 @@ export class VideoProcessingService {
 
       case 'detect-scenes':
         console.log('VideoProcessingService: Sending detectScenes message');
-        const config: SceneDetectionConfig = {
+        const advancedConfig: SceneDetectionConfig = {
           sensitivity: 'medium',
-          pixelThreshold: 0.3,
-          audioThreshold: 0.2,
+          algorithms: {
+            pixelDifference: {
+              enabled: true,
+              threshold: 0.3,
+              weight: 1.0
+            },
+            audioAmplitude: {
+              enabled: true,
+              threshold: 0.2,
+              weight: 0.8
+            },
+            colorHistogram: {
+              enabled: true,
+              threshold: 0.4,
+              weight: 0.7
+            },
+            motionVector: {
+              enabled: true,
+              threshold: 0.5,
+              weight: 0.9
+            },
+            faceDetection: {
+              enabled: true,
+              speakerChangeThreshold: 0.6,
+              weight: 1.2
+            }
+          },
           minSceneDuration: 5,
-          maxScenes: 10
+          maxScenes: 15,
+          preserveContext: true,
+          maintainNarrativeFlow: true
         };
         this.worker.postMessage({
           type: 'detectScenes',
           data: { 
             videoFile: videoFile, 
-            config, 
+            config: advancedConfig, 
             jobId: job.id, 
             stepId: step.id,
             metadata: job.metadata
