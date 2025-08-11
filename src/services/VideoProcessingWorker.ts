@@ -127,13 +127,13 @@ class VideoProcessor {
         
         // Enhanced scene boundary calculation
         const sceneStart = (duration / numScenes) * i;
-        let sceneDuration = Math.max(config.minSceneDuration, duration / numScenes);
+        let targetSceneLength = Math.max(config.minSceneDuration, duration / numScenes);
         
         // Add some randomness for more natural scene lengths
         const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
-        sceneDuration *= randomFactor;
+        targetSceneLength *= randomFactor;
         
-        const sceneEnd = Math.min(sceneStart + sceneDuration, duration);
+        const sceneEnd = Math.min(sceneStart + targetSceneLength, duration);
         const sceneDuration = sceneEnd - sceneStart;
         
         // Skip scenes that are too short
