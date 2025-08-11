@@ -132,10 +132,6 @@ class VideoProcessor {
       const duration = metadata.duration || 300;
       const scenes: DetectedScene[] = [];
       
-      // Create video element for actual analysis
-      const videoBlob = new Blob([videoFile.data], { type: videoFile.type });
-      const videoUrl = URL.createObjectURL(videoBlob);
-      
       // Enhanced scene calculation based on sensitivity and algorithms
       let numScenes: number;
       
@@ -175,8 +171,6 @@ class VideoProcessor {
           continue;
         }
 
-        // Generate actual thumbnail from video
-        const thumbnail = await this.generateThumbnail(videoUrl, sceneStart + (sceneDuration / 2));
 
         // Enhanced confidence calculation based on multiple factors
         let confidence = 0.6;
@@ -229,8 +223,6 @@ class VideoProcessor {
           endTime: sceneEnd,
           duration: actualSceneDuration,
           confidence,
-          thumbnail,
-          videoUrl, // Add video URL for preview
           detectionMethods,
           contextScore,
           narrativeImportance,
@@ -263,8 +255,6 @@ class VideoProcessor {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Clean up
-      URL.revokeObjectURL(videoUrl);
 
       console.log('VideoProcessor: Advanced scene detection completed', scenes.length, 'scenes with AI analysis');
       return scenes;
@@ -274,40 +264,13 @@ class VideoProcessor {
     }
   }
 
-  private async generateThumbnail(videoUrl: string, timeInSeconds: number): Promise<string> {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      video.onloadedmetadata = () => {
-        canvas.width = 320;
-        canvas.height = 180;
-        video.currentTime = timeInSeconds;
-      };
-      
-      video.onseeked = () => {
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        }
-      };
-      
-      video.onerror = () => {
-        // Fallback to generated thumbnail
-        resolve(`data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="16">Scene Preview</text></svg>`)}`);
-      };
-      
-      video.src = videoUrl;
-    });
-  }
 
   async generateClip(
     scene: DetectedScene,
     preset: PlatformPreset,
     jobId: string,
     videoFile: any
-  ): Promise<{ url: string; thumbnail: string }> {
+  ): Promise<{ data: Uint8Array; mimeType: string }> {
     console.log('VideoProcessor: Generating clip for', preset.displayName, scene.id);
     this.currentJobId = jobId;
 
@@ -345,11 +308,6 @@ class VideoProcessor {
 
       // Read the output file
       const data = await this.ffmpeg.readFile(outputFileName);
-      const clipBlob = new Blob([data], { type: 'video/mp4' });
-      const clipUrl = URL.createObjectURL(clipBlob);
-
-      // Generate thumbnail for the clip
-      const thumbnail = await this.generateThumbnail(clipUrl, 0);
 
       this.postMessage({
         type: 'progress',
@@ -360,8 +318,8 @@ class VideoProcessor {
 
       console.log('VideoProcessor: Clip generated successfully');
       return { 
-        url: clipUrl,
-        thumbnail
+        data: new Uint8Array(data as ArrayBuffer),
+        mimeType: 'video/mp4'
       };
     } catch (error) {
       console.error('VideoProcessor: Clip generation failed', error);

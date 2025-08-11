@@ -149,7 +149,7 @@ export class VideoProcessingService {
     job.updatedAt = new Date();
   }
 
-  private handleStepComplete(job: VideoProcessingJob, stepId: string | undefined, data: any) {
+  private async handleStepComplete(job: VideoProcessingJob, stepId: string | undefined, data: any) {
     console.log('VideoProcessingService: Step completed', job.id, stepId, data);
     if (stepId) {
       const step = job.steps.find(s => s.id === stepId);
@@ -167,7 +167,15 @@ export class VideoProcessingService {
     }
 
     if (data.scenes) {
-      job.scenes = data.scenes;
+      // Generate thumbnails for scenes on main thread
+      const scenesWithThumbnails = await Promise.all(
+        data.scenes.map(async (scene: DetectedScene) => {
+          const thumbnailTime = scene.startTime + (scene.duration / 2);
+          const thumbnail = await this.generateThumbnailFromVideo(job.videoFile.url, thumbnailTime);
+          return { ...scene, thumbnail };
+        })
+      );
+      job.scenes = scenesWithThumbnails;
       console.log('VideoProcessingService: Updated job with', data.scenes.length, 'scenes');
     }
 
@@ -176,9 +184,16 @@ export class VideoProcessingService {
       const clipJob = job.clips.find(c => c.id === stepId);
       if (clipJob) {
         console.log('VideoProcessingService: Updating clip job', clipJob.id, 'with output');
+        // Create blob URL from raw data
+        const clipBlob = new Blob([data.clip.data], { type: data.clip.mimeType });
+        const clipUrl = URL.createObjectURL(clipBlob);
+        
+        // Generate thumbnail for the clip
+        const thumbnail = await this.generateThumbnailFromVideo(clipUrl, 0);
+        
         clipJob.status = 'completed';
-        clipJob.outputUrl = data.clip.url;
-        clipJob.thumbnail = data.clip.thumbnail;
+        clipJob.outputUrl = clipUrl;
+        clipJob.thumbnail = thumbnail;
         clipJob.completedAt = new Date();
         clipJob.progress = 100;
       }

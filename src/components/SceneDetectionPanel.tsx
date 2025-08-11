@@ -285,32 +285,11 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
             >
               {/* Thumbnail */}
               <div className="relative">
-                  {scene.videoUrl && playingVideo === scene.id ? (
-                    <video
-                      src={scene.videoUrl}
-                      className="w-full h-24 object-cover"
-                      controls
-                      autoPlay
-                      onEnded={() => setPlayingVideo(null)}
-                    />
-                  ) : (
-                    <div 
-                      className="relative cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPlayingVideo(scene.id);
-                      }}
-                    >
-                      <img
-                        src={scene.thumbnail}
-                        alt={`Scene ${scene.id}`}
-                        className="w-full h-24 object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors">
-                        <Play className="h-8 w-8 text-white" />
-                      </div>
-                    </div>
-                  )}
+                <img
+                  src={scene.thumbnail || `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="16">Scene Preview</text></svg>`)}`}
+                  alt={`Scene ${scene.id}`}
+                  className="w-full h-24 object-cover"
+                />
                 
                 {/* Overlay Info */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
@@ -511,35 +490,11 @@ const ScenePreviewModal: React.FC<{
             <div className="space-y-4">
               {/* Thumbnail */}
               <div className="relative">
-                {scene.videoUrl ? (
-                  <video
-                    src={scene.videoUrl}
-                    className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
-                    controls
-                    onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                  />
-                ) : (
-                  <>
-                    <img
-                      src={scene.thumbnail}
-                      alt={`Scene ${scene.id}`}
-                      className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
-                    />
-                    
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <button
-                        onClick={() => setIsPlaying(!isPlaying)}
-                        className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-colors"
-                      >
-                        {isPlaying ? (
-                          <Pause className="h-8 w-8" />
-                        ) : (
-                          <Play className="h-8 w-8 ml-1" />
-                        )}
-                      </button>
-                    </div>
-                  </>
-                )}
+                <img
+                  src={scene.thumbnail || `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="16">Scene Preview</text></svg>`)}`}
+                  alt={`Scene ${scene.id}`}
+                  className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
+                />
               </div>
 
               {/* Scene Details */}

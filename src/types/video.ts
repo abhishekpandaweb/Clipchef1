@@ -50,8 +50,7 @@ export interface DetectedScene {
   endTime: number;
   duration: number;
   confidence: number;
-  thumbnail: string;
-  videoUrl?: string;
+  thumbnail?: string;
   description?: string;
   detectionMethods: {
     pixelDifference: number;
