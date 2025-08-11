@@ -32,6 +32,7 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set(['tiktok', 'instagram-reels']));
   const [showSettings, setShowSettings] = useState(false);
   const [previewScene, setPreviewScene] = useState<DetectedScene | null>(null);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [detectionConfig, setDetectionConfig] = useState<SceneDetectionConfig>({
     sensitivity: 'medium',
     pixelThreshold: 0.3,
@@ -284,11 +285,32 @@ const SceneDetectionPanel: React.FC<SceneDetectionPanelProps> = ({
             >
               {/* Thumbnail */}
               <div className="relative">
-                <img
-                  src={scene.thumbnail}
-                  alt={`Scene ${scene.id}`}
-                  className="w-full h-24 object-cover"
-                />
+                  {scene.videoUrl && playingVideo === scene.id ? (
+                    <video
+                      src={scene.videoUrl}
+                      className="w-full h-24 object-cover"
+                      controls
+                      autoPlay
+                      onEnded={() => setPlayingVideo(null)}
+                    />
+                  ) : (
+                    <div 
+                      className="relative cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPlayingVideo(scene.id);
+                      }}
+                    >
+                      <img
+                        src={scene.thumbnail}
+                        alt={`Scene ${scene.id}`}
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors">
+                        <Play className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
+                  )}
                 
                 {/* Overlay Info */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
@@ -457,6 +479,7 @@ const ScenePreviewModal: React.FC<{
   onClose: () => void;
 }> = ({ scene, onClose }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -488,24 +511,35 @@ const ScenePreviewModal: React.FC<{
             <div className="space-y-4">
               {/* Thumbnail */}
               <div className="relative">
-                <img
-                  src={scene.thumbnail}
-                  alt={`Scene ${scene.id}`}
-                  className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
-                />
-                
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-colors"
-                  >
-                    {isPlaying ? (
-                      <Pause className="h-8 w-8" />
-                    ) : (
-                      <Play className="h-8 w-8 ml-1" />
-                    )}
-                  </button>
-                </div>
+                {scene.videoUrl ? (
+                  <video
+                    src={scene.videoUrl}
+                    className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
+                    controls
+                    onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                  />
+                ) : (
+                  <>
+                    <img
+                      src={scene.thumbnail}
+                      alt={`Scene ${scene.id}`}
+                      className="w-full h-64 object-cover rounded-lg bg-gray-100 dark:bg-gray-700"
+                    />
+                    
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-colors"
+                      >
+                        {isPlaying ? (
+                          <Pause className="h-8 w-8" />
+                        ) : (
+                          <Play className="h-8 w-8 ml-1" />
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Scene Details */}

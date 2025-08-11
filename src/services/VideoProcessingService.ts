@@ -300,16 +300,25 @@ export class VideoProcessingService {
           preserveContext: true,
           maintainNarrativeFlow: true
         };
-        this.worker.postMessage({
-          type: 'detectScenes',
-          data: { 
-            videoFile: videoFile, 
-            config: advancedConfig, 
-            jobId: job.id, 
-            stepId: step.id,
-            metadata: job.metadata
-          }
-        });
+        
+        // Convert video file to array buffer for worker
+        fetch(videoFile.url)
+          .then(response => response.arrayBuffer())
+          .then(data => {
+            this.worker!.postMessage({
+              type: 'detectScenes',
+              data: { 
+                videoFile: { data, type: videoFile.format }, 
+                config: advancedConfig, 
+                jobId: job.id, 
+                stepId: step.id,
+                metadata: job.metadata
+              }
+            });
+          })
+          .catch(error => {
+            this.handleStepError(job, step.id, { error: `Failed to read video file: ${error}` });
+          });
         break;
 
       case 'generate-clips':
@@ -371,15 +380,25 @@ export class VideoProcessingService {
         // Start clip generation
         if (this.worker) {
           console.log('VideoProcessingService: Sending generateClip message for', preset.displayName);
-          this.worker.postMessage({
-            type: 'generateClip',
-            data: {
-              scene,
-              preset,
-              jobId: clipJob.id,
-              stepId: clipJob.id
-            }
-          });
+          
+          // Convert video file to array buffer for worker
+          fetch(job.videoFile.url)
+            .then(response => response.arrayBuffer())
+            .then(data => {
+              this.worker!.postMessage({
+                type: 'generateClip',
+                data: {
+                  scene,
+                  preset,
+                  jobId: clipJob.id,
+                  stepId: clipJob.id,
+                  videoFile: { data, type: job.videoFile.format }
+                }
+              });
+            })
+            .catch(error => {
+              console.error('VideoProcessingService: Failed to read video file for clip generation', error);
+            });
         }
       });
     });

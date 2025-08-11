@@ -1,6 +1,10 @@
 // VideoProcessingWorker.ts - Simplified client-side video processing
 console.log('VideoProcessingWorker: Starting initialization');
 
+// Import FFmpeg for actual video processing
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
 // Define interfaces for worker communication
 interface WorkerMessage {
   type: 'progress' | 'complete' | 'error' | 'log';
@@ -77,9 +81,34 @@ interface PlatformPreset {
 
 class VideoProcessor {
   private currentJobId: string | null = null;
+  private ffmpeg: FFmpeg | null = null;
+  private isFFmpegLoaded = false;
 
   constructor() {
     console.log('VideoProcessor: Constructor called');
+    this.initializeFFmpeg();
+  }
+
+  private async initializeFFmpeg() {
+    try {
+      this.ffmpeg = new FFmpeg();
+      
+      // Load FFmpeg
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+      this.ffmpeg.on('log', ({ message }) => {
+        console.log('FFmpeg:', message);
+      });
+      
+      await this.ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      
+      this.isFFmpegLoaded = true;
+      console.log('VideoProcessor: FFmpeg loaded successfully');
+    } catch (error) {
+      console.error('VideoProcessor: Failed to load FFmpeg', error);
+    }
   }
 
   private postMessage(message: WorkerMessage) {
@@ -91,6 +120,7 @@ class VideoProcessor {
 
 
   async detectScenes(
+    videoFile: any,
     metadata: VideoMetadata,
     config: SceneDetectionConfig, 
     jobId: string
@@ -101,6 +131,10 @@ class VideoProcessor {
     try {
       const duration = metadata.duration || 300;
       const scenes: DetectedScene[] = [];
+      
+      // Create video element for actual analysis
+      const videoBlob = new Blob([videoFile.data], { type: videoFile.type });
+      const videoUrl = URL.createObjectURL(videoBlob);
       
       // Enhanced scene calculation based on sensitivity and algorithms
       let numScenes: number;
@@ -140,6 +174,9 @@ class VideoProcessor {
         if (sceneDuration < config.minSceneDuration) {
           continue;
         }
+
+        // Generate actual thumbnail from video
+        const thumbnail = await this.generateThumbnail(videoUrl, sceneStart + (actualSceneDuration / 2));
 
         // Enhanced confidence calculation based on multiple factors
         let confidence = 0.6;
@@ -190,9 +227,10 @@ class VideoProcessor {
           id: `scene_${i + 1}`,
           startTime: sceneStart,
           endTime: sceneEnd,
-          duration: sceneDuration,
+          duration: actualSceneDuration,
           confidence,
-          thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad${i}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:${dominantColors[0]};stop-opacity:1" /><stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" /></linearGradient></defs><rect width="100%" height="100%" fill="url(#grad${i})"/><circle cx="160" cy="90" r="30" fill="rgba(255,255,255,0.2)"/><text x="50%" y="45%" text-anchor="middle" dy=".3em" fill="white" font-size="14" font-family="Arial" font-weight="bold">Scene ${i + 1}</text><text x="50%" y="60%" text-anchor="middle" dy=".3em" fill="white" font-size="11" font-family="Arial">${Math.round(sceneStart)}s - ${Math.round(sceneEnd)}s</text><text x="50%" y="75%" text-anchor="middle" dy=".3em" fill="rgba(255,255,255,0.8)" font-size="10" font-family="Arial">Confidence: ${Math.round(confidence * 100)}%</text></svg>`)}`,
+          thumbnail,
+          videoUrl, // Add video URL for preview
           detectionMethods,
           contextScore,
           narrativeImportance,
@@ -225,6 +263,9 @@ class VideoProcessor {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
+      // Clean up
+      URL.revokeObjectURL(videoUrl);
+
       console.log('VideoProcessor: Advanced scene detection completed', scenes.length, 'scenes with AI analysis');
       return scenes;
     } catch (error) {
@@ -233,15 +274,51 @@ class VideoProcessor {
     }
   }
 
+  private async generateThumbnail(videoUrl: string, timeInSeconds: number): Promise<string> {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      video.onloadedmetadata = () => {
+        canvas.width = 320;
+        canvas.height = 180;
+        video.currentTime = timeInSeconds;
+      };
+      
+      video.onseeked = () => {
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        }
+      };
+      
+      video.onerror = () => {
+        // Fallback to generated thumbnail
+        resolve(`data:image/svg+xml;base64,${btoa(`<svg width="320" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="16">Scene Preview</text></svg>`)}`);
+      };
+      
+      video.src = videoUrl;
+    });
+  }
+
   async generateClip(
     scene: DetectedScene,
     preset: PlatformPreset,
-    jobId: string
+    jobId: string,
+    videoFile: any
   ): Promise<{ url: string; thumbnail: string }> {
     console.log('VideoProcessor: Generating clip for', preset.displayName, scene.id);
     this.currentJobId = jobId;
 
     try {
+      if (!this.isFFmpegLoaded || !this.ffmpeg) {
+        throw new Error('FFmpeg not loaded');
+      }
+
+      // Write input file to FFmpeg
+      await this.ffmpeg.writeFile('input.mp4', await fetchFile(videoFile.data));
+
       // Simulate processing time with progress updates
       for (let progress = 0; progress <= 100; progress += 20) {
         this.postMessage({
@@ -253,6 +330,27 @@ class VideoProcessor {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
+      // Generate actual clip using FFmpeg
+      const outputFileName = `clip_${scene.id}_${preset.id}.mp4`;
+      
+      // FFmpeg command for cropping and resizing
+      await this.ffmpeg.exec([
+        '-i', 'input.mp4',
+        '-ss', scene.startTime.toString(),
+        '-t', scene.duration.toString(),
+        '-vf', `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=increase,crop=${preset.width}:${preset.height}`,
+        '-c:a', 'copy',
+        outputFileName
+      ]);
+
+      // Read the output file
+      const data = await this.ffmpeg.readFile(outputFileName);
+      const clipBlob = new Blob([data], { type: 'video/mp4' });
+      const clipUrl = URL.createObjectURL(clipBlob);
+
+      // Generate thumbnail for the clip
+      const thumbnail = await this.generateThumbnail(clipUrl, 0);
+
       this.postMessage({
         type: 'progress',
         jobId,
@@ -262,8 +360,8 @@ class VideoProcessor {
 
       console.log('VideoProcessor: Clip generated successfully');
       return { 
-        url: `blob:${preset.id}_${scene.id}_clip.mp4`, // Simulated clip URL
-        thumbnail: `data:image/svg+xml;base64,${btoa(`<svg width="${preset.width}" height="${preset.height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#3b82f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-size="24">${preset.displayName}</text></svg>`)}`
+        url: clipUrl,
+        thumbnail
       };
     } catch (error) {
       console.error('VideoProcessor: Clip generation failed', error);
@@ -307,6 +405,7 @@ self.onmessage = async (event: MessageEvent) => {
       case 'detectScenes':
         console.log('VideoProcessingWorker: Starting scene detection');
         const scenes = await processor.detectScenes(
+          data.videoFile,
           data.metadata,
           data.config, 
           data.jobId
@@ -324,7 +423,8 @@ self.onmessage = async (event: MessageEvent) => {
         const clip = await processor.generateClip(
           data.scene,
           data.preset,
-          data.jobId
+          data.jobId,
+          data.videoFile
         );
         self.postMessage({
           type: 'complete',
