@@ -176,7 +176,6 @@ class VideoProcessor {
         }
 
         // Generate actual thumbnail from video
-        const thumbnail = await this.generateThumbnail(videoUrl, sceneStart + (actualSceneDuration / 2));
         const thumbnail = await this.generateThumbnail(videoUrl, sceneStart + (sceneDuration / 2));
 
         // Enhanced confidence calculation based on multiple factors
