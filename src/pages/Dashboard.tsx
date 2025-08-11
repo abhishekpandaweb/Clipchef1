@@ -12,7 +12,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../contexts/ToastContext';
 import { VideoProcessingJob, VideoFile, DetectedScene, SceneDetectionConfig } from '../types';
-import { Video, Upload, Scissors, Brain, Target, Zap } from 'lucide-react';
+import { Video, Upload, Scissors, Brain, Target, Zap, X, Settings, CheckCircle } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +28,8 @@ export const Dashboard: React.FC = () => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['tiktok', 'instagram-reels']);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [currentStep, setCurrentStep] = useState<'upload' | 'configure' | 'process' | 'results'>('upload');
   const [sceneConfig, setSceneConfig] = useState<SceneDetectionConfig>({
     sensitivity: 'medium',
     algorithms: {
@@ -116,52 +118,207 @@ export const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumb items={breadcrumbItems} />
         
+        {/* Welcome Section */}
+        {showWelcome && (
+          <div className="mb-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white relative overflow-hidden">
+            <button
+              onClick={() => setShowWelcome(false)}
+              className="absolute top-4 right-4 text-white/80 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            <div className="relative z-10">
+              <h1 className="text-4xl font-bold mb-4">
+                Welcome to ClipChef AI 🚀
+              </h1>
+              <p className="text-xl mb-6 text-blue-100">
+                Transform your long-form videos into viral clips with revolutionary AI technology
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                  <Brain className="h-8 w-8 mb-2" />
+                  <h3 className="font-semibold mb-1">Zero-Server AI</h3>
+                  <p className="text-sm text-blue-100">Complete privacy - videos never leave your device</p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                  <Zap className="h-8 w-8 mb-2" />
+                  <h3 className="font-semibold mb-1">Multi-Algorithm Detection</h3>
+                  <p className="text-sm text-blue-100">5 AI algorithms working together for perfect scenes</p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+                  <Target className="h-8 w-8 mb-2" />
+                  <h3 className="font-semibold mb-1">Platform Optimization</h3>
+                  <p className="text-sm text-blue-100">Optimized for TikTok, Instagram, YouTube & more</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    setShowWelcome(false);
+                    setCurrentStep('upload');
+                  }}
+                  className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                >
+                  Get Started
+                </button>
+                <button
+                  onClick={() => setShowWelcome(false)}
+                  className="text-white/80 hover:text-white px-6 py-3 rounded-lg border border-white/20 hover:border-white/40 transition-colors"
+                >
+                  Skip Tour
+                </button>
+              </div>
+            </div>
+            
+            {/* Background decoration */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full"></div>
+          </div>
+        )}
+
+        {/* Progress Steps */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome to ClipChef AI
-          </h1>
-          <p className="text-gray-600">
-            Revolutionary browser-based AI video editing • Zero-server processing • Complete privacy
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Create Viral Clips in 3 Steps
+            </h2>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Step {currentStep === 'upload' ? '1' : currentStep === 'configure' ? '2' : '3'} of 3
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-4 mb-6">
+            {[
+              { id: 'upload', label: 'Upload Video', icon: Upload },
+              { id: 'configure', label: 'Configure AI', icon: Settings },
+              { id: 'process', label: 'Generate Clips', icon: Scissors }
+            ].map((step, index) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = 
+                (step.id === 'upload' && jobs.length > 0) ||
+                (step.id === 'configure' && selectedJob?.scenes.length > 0) ||
+                (step.id === 'process' && selectedJob?.clips.length > 0);
+              
+              return (
+                <div key={step.id} className="flex items-center">
+                  <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    isActive 
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                      : isCompleted
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                  }`}>
+                    <step.icon className="h-4 w-4" />
+                    <span className="text-sm font-medium">{step.label}</span>
+                    {isCompleted && <CheckCircle className="h-4 w-4" />}
+                  </div>
+                  {index < 2 && (
+                    <div className="w-8 h-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Upload Section */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className="space-y-6">
             {/* AI Models */}
             <AIModelPanel />
             
             {/* Upload */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 p-6 transition-colors ${
+              currentStep === 'upload' ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : 'border-gray-200 dark:border-gray-700'
+            }`}>
               <div className="flex items-center mb-4">
                 <Upload className="w-5 h-5 text-blue-600 mr-2" />
-                <h2 className="text-lg font-semibold text-gray-900">Upload Video</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Step 1: Upload Your Video
+                </h2>
               </div>
+              
+              {jobs.length === 0 && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-400">
+                    💡 <strong>Tip:</strong> Upload podcasts, interviews, tutorials, or any long-form content to get started!
+                  </p>
+                </div>
+              )}
+              
               <AdvancedFileUpload
-                onFileUpload={handleFileUpload}
+                onFileUpload={(files) => {
+                  handleFileUpload(files);
+                  setCurrentStep('configure');
+                }}
                 acceptedFormats={['mp4', 'mov', 'avi', 'webm', 'mkv']}
                 maxFileSize={500}
               />
+              
+              {jobs.length > 0 && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <div className="flex items-center text-green-700 dark:text-green-400">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <span className="text-sm font-medium">Video uploaded successfully!</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* AI Configuration */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className="space-y-6">
             {/* Advanced Scene Detection */}
-            <AdvancedSceneDetectionPanel
-              config={sceneConfig}
-              onConfigChange={setSceneConfig}
-            />
+            <div className={`transition-colors ${
+              currentStep === 'configure' ? 'ring-2 ring-blue-200 dark:ring-blue-800 rounded-lg' : ''
+            }`}>
+              <AdvancedSceneDetectionPanel
+                config={sceneConfig}
+                onConfigChange={(config) => {
+                  setSceneConfig(config);
+                  if (currentStep === 'configure') {
+                    setCurrentStep('process');
+                  }
+                }}
+              />
+            </div>
             
             {/* Platform Optimization */}
-            <PlatformOptimizationPanel
-              selectedPlatforms={selectedPlatforms}
-              onPlatformToggle={handlePlatformToggle}
-            />
+            <div className={`transition-colors ${
+              currentStep === 'process' ? 'ring-2 ring-blue-200 dark:ring-blue-800 rounded-lg' : ''
+            }`}>
+              <PlatformOptimizationPanel
+                selectedPlatforms={selectedPlatforms}
+                onPlatformToggle={handlePlatformToggle}
+              />
+            </div>
           </div>
 
           {/* Processing & Results */}
-          <div className="xl:col-span-2 space-y-6">
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            {selectedJob && selectedJob.scenes.length > 0 && (
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6 border border-green-200 dark:border-green-800">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                  🎉 Scenes Detected Successfully!
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Found {selectedJob.scenes.length} potential clips. Ready to generate platform-optimized videos?
+                </p>
+                <button
+                  onClick={() => handleGenerateClips(selectedJob.scenes, selectedPlatforms)}
+                  disabled={selectedPlatforms.length === 0}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 disabled:transform-none flex items-center space-x-2"
+                >
+                  <Zap className="h-5 w-5" />
+                  <span>Generate {selectedJob.scenes.length * selectedPlatforms.length} Clips</span>
+                </button>
+              </div>
+            )}
+            
             {/* Processing Queue */}
             {jobs.length > 0 && (
               <VideoProcessingQueue />
@@ -175,20 +332,69 @@ export const Dashboard: React.FC = () => {
                 onScenesUpdate={() => {}}
               />
             ) : (
-              <EmptyState
-                icon={Brain}
-                title="Ready for AI Processing"
-                description="Upload a video to start the revolutionary AI-powered scene detection and clip generation process. All processing happens locally in your browser for complete privacy."
-                actionText="Upload Your First Video"
-                onAction={() => {
-                  // Focus on upload area
-                  const uploadElement = document.querySelector('[data-testid="file-upload"]');
-                  if (uploadElement) {
-                    uploadElement.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-              />
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                <div className="max-w-md mx-auto">
+                  <Brain className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Ready for AI Magic ✨
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Upload a video to start the revolutionary AI-powered scene detection and clip generation process. 
+                    All processing happens locally in your browser for complete privacy.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-blue-900 dark:text-blue-400">🔒 Private</div>
+                      <div className="text-blue-700 dark:text-blue-300">Videos never leave your device</div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-purple-900 dark:text-purple-400">🚀 Fast</div>
+                      <div className="text-purple-700 dark:text-purple-300">AI processing in your browser</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
+          </div>
+        </div>
+        
+        {/* Help Section */}
+        <div className="mt-12 bg-gray-100 dark:bg-gray-800 rounded-xl p-8">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Need Help Getting Started? 🤔
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">📹 Best Video Types</h4>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li>• Podcasts & interviews</li>
+                <li>• Educational content</li>
+                <li>• Webinars & presentations</li>
+                <li>• Long-form tutorials</li>
+              </ul>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">⚡ Quick Tips</h4>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li>• Upload videos up to 500MB</li>
+                <li>• AI works best with clear audio</li>
+                <li>• Processing happens locally</li>
+                <li>• No internet needed after setup</li>
+              </ul>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">🎯 Platform Tips</h4>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li>• TikTok: 15-30s clips work best</li>
+                <li>• Instagram: Square format for posts</li>
+                <li>• YouTube: Vertical for Shorts</li>
+                <li>• LinkedIn: Professional tone</li>
+              </ul>
+            </div>
           </div>
         </div>
         

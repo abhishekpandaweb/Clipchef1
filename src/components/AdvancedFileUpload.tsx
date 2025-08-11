@@ -284,19 +284,25 @@ const AdvancedFileUpload: React.FC<AdvancedFileUploadProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        data-testid="file-upload"
       >
         <div className="flex flex-col items-center">
-          <Upload className={`h-16 w-16 mb-4 transition-colors ${
+          <div className={`p-4 rounded-full mb-4 transition-all ${
             isDragOver ? 'text-blue-500' : 'text-gray-400'
-          }`} />
+          } ${isDragOver ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+            <Upload className="h-12 w-12" />
+          </div>
           
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {isDragOver ? 'Drop your videos here' : 'Upload your videos'}
           </h3>
           
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-            Drag and drop your video files here, or click to browse. 
-            Supports {acceptedFormats.join(', ').toUpperCase()} formats up to {maxFileSize}MB.
+          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-lg text-center">
+            <strong>Drag and drop</strong> your video files here, or click the button below to browse. 
+            <br />
+            <span className="text-sm">
+              Supports {acceptedFormats.join(', ').toUpperCase()} formats • Up to {maxFileSize}MB • Complete privacy
+            </span>
           </p>
           
           <input
@@ -310,10 +316,22 @@ const AdvancedFileUpload: React.FC<AdvancedFileUploadProps> = ({
           
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-3"
           >
-            Choose Files
+            <Upload className="h-5 w-5" />
+            <span>Choose Video Files</span>
           </button>
+          
+          <div className="mt-4 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>100% Private</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>AI Powered</span>
+            </div>
+          </div>
         </div>
       </div>
 
