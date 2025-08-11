@@ -221,7 +221,7 @@ class VideoProcessor {
           id: `scene_${i + 1}`,
           startTime: sceneStart,
           endTime: sceneEnd,
-          duration: actualSceneDuration,
+          duration: sceneDuration,
           confidence,
           detectionMethods,
           contextScore,
