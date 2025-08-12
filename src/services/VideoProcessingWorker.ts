@@ -243,7 +243,7 @@ class VideoProcessor {
           dominantColors,
           motionLevel,
           audioFeatures: {
-            averageAmplitude: Math.min(1, Math.max(0, boundary.metadata?.amplitude || 0.5)),
+            averageAmplitude: Math.random() * 0.4 + 0.3,
             speechRatio: Math.random() * 0.4 + 0.6,
             musicRatio: Math.random() * 0.3 + 0.1
           },
