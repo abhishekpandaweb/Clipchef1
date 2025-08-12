@@ -619,6 +619,45 @@ export class VideoProcessingService {
     this.callbacks.clear();
   }
 
+  private async generateThumbnailFromVideo(videoUrl: string, timeInSeconds: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      video.crossOrigin = 'anonymous';
+      video.preload = 'metadata';
+      
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        video.currentTime = timeInSeconds;
+      };
+
+      video.onseeked = () => {
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataUrl);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      video.onerror = () => {
+        reject(new Error('Failed to load video for thumbnail generation'));
+      };
+
+      video.src = videoUrl;
+    });
+  }
+
   generateClipsForJob(jobId: string, scenes: DetectedScene[], platforms: string[]): void {
     const job = this.jobs.get(jobId);
     if (!job) {
