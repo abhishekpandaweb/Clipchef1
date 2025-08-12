@@ -129,7 +129,13 @@ class VideoProcessor {
     this.currentJobId = jobId;
 
     try {
-      const duration = metadata.duration || 300;
+      const duration = metadata?.duration || 300;
+      
+      // Validate duration
+      if (!duration || duration <= 0 || isNaN(duration)) {
+        throw new Error('Invalid video duration');
+      }
+      
       const scenes: DetectedScene[] = [];
       
       // Enhanced scene calculation based on sensitivity and algorithms
@@ -165,6 +171,12 @@ class VideoProcessor {
         
         const sceneEnd = Math.min(sceneStart + targetSceneLength, duration);
         const sceneDuration = sceneEnd - sceneStart;
+        
+        // Validate scene times
+        if (isNaN(sceneStart) || isNaN(sceneEnd) || isNaN(sceneDuration)) {
+          console.error('VideoProcessor: Invalid scene times', { sceneStart, sceneEnd, sceneDuration });
+          continue;
+        }
         
         // Skip scenes that are too short
         if (sceneDuration < config.minSceneDuration) {
@@ -219,9 +231,9 @@ class VideoProcessor {
         
         const scene: DetectedScene = {
           id: `scene_${i + 1}`,
-          startTime: sceneStart,
-          endTime: sceneEnd,
-          duration: sceneDuration,
+          startTime: Math.max(0, Math.round(sceneStart * 100) / 100),
+          endTime: Math.min(duration, Math.round(sceneEnd * 100) / 100),
+          duration: Math.round(sceneDuration * 100) / 100,
           confidence,
           detectionMethods,
           contextScore,
@@ -231,14 +243,17 @@ class VideoProcessor {
           dominantColors,
           motionLevel,
           audioFeatures: {
-            averageAmplitude: Math.random() * 0.6 + 0.2,
+            averageAmplitude: Math.min(1, Math.max(0, boundary.metadata?.amplitude || 0.5)),
             speechRatio: Math.random() * 0.4 + 0.6,
             musicRatio: Math.random() * 0.3 + 0.1
           },
           description: `AI-detected scene using ${Object.entries(detectionMethods).filter(([_, score]) => score > 0).map(([method]) => method).join(', ')} (${Math.round(sceneDuration)}s, viral potential: ${Math.round(viralPotential * 100)}%)`
         };
         
-        scenes.push(scene);
+        // Final validation before adding scene
+        if (scene.startTime >= 0 && scene.endTime > scene.startTime && scene.duration > 0) {
+          scenes.push(scene);
+        }
 
         // Update progress
         this.postMessage({

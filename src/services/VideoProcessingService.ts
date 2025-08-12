@@ -167,16 +167,46 @@ export class VideoProcessingService {
     }
 
     if (data.scenes) {
+      console.log('VideoProcessingService: Processing', data.scenes.length, 'scenes');
+      
+      // Filter out invalid scenes
+      const validScenes = data.scenes.filter((scene: any) => {
+        const isValid = scene && 
+          typeof scene.startTime === 'number' && 
+          typeof scene.endTime === 'number' && 
+          typeof scene.duration === 'number' &&
+          !isNaN(scene.startTime) && 
+          !isNaN(scene.endTime) && 
+          !isNaN(scene.duration) &&
+          scene.startTime >= 0 &&
+          scene.endTime > scene.startTime &&
+          scene.duration > 0;
+        
+        if (!isValid) {
+          console.warn('VideoProcessingService: Filtering out invalid scene', scene);
+        }
+        
+        return isValid;
+      });
+      
+      console.log('VideoProcessingService: Valid scenes after filtering:', validScenes.length);
+      
       // Generate thumbnails for scenes on main thread
       const scenesWithThumbnails = await Promise.all(
-        data.scenes.map(async (scene: DetectedScene) => {
+        validScenes.map(async (scene: DetectedScene) => {
           const thumbnailTime = scene.startTime + (scene.duration / 2);
-          const thumbnail = await this.generateThumbnailFromVideo(job.videoFile.url, thumbnailTime);
-          return { ...scene, thumbnail };
+          try {
+            const thumbnail = await this.generateThumbnailFromVideo(job.videoFile.url, thumbnailTime);
+            return { ...scene, thumbnail };
+          } catch (error) {
+            console.warn('VideoProcessingService: Failed to generate thumbnail for scene', scene.id, error);
+            // Return scene without thumbnail
+            return { ...scene, thumbnail: '' };
+          }
         })
       );
       job.scenes = scenesWithThumbnails;
-      console.log('VideoProcessingService: Updated job with', data.scenes.length, 'scenes');
+      console.log('VideoProcessingService: Updated job with', scenesWithThumbnails.length, 'scenes with thumbnails');
     }
 
     if (data.clip) {
@@ -621,6 +651,12 @@ export class VideoProcessingService {
 
   private async generateThumbnailFromVideo(videoUrl: string, timeInSeconds: number): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Validate input parameters
+      if (!videoUrl || typeof timeInSeconds !== 'number' || isNaN(timeInSeconds) || timeInSeconds < 0) {
+        reject(new Error('Invalid parameters for thumbnail generation'));
+        return;
+      }
+      
       const video = document.createElement('video');
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -632,26 +668,60 @@ export class VideoProcessingService {
 
       video.crossOrigin = 'anonymous';
       video.preload = 'metadata';
+      video.muted = true; // Ensure video can play without user interaction
       
       video.onloadedmetadata = () => {
+        // Validate video dimensions
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          reject(new Error('Invalid video dimensions'));
+          return;
+        }
+        
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        video.currentTime = timeInSeconds;
+        // Ensure time is within video bounds
+        const seekTime = Math.min(Math.max(0, timeInSeconds), video.duration || 0);
+        video.currentTime = seekTime;
       };
 
       video.onseeked = () => {
         try {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          
+          // Cleanup
+          video.src = '';
+          video.load();
+          
           resolve(dataUrl);
         } catch (error) {
+          console.error('VideoProcessingService: Error drawing video frame', error);
           reject(error);
         }
       };
 
       video.onerror = () => {
         reject(new Error('Failed to load video for thumbnail generation'));
+      };
+      
+      video.ontimeupdate = () => {
+        // Fallback if onseeked doesn't fire
+        if (Math.abs(video.currentTime - timeInSeconds) < 0.1) {
+          video.ontimeupdate = null;
+          try {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Cleanup
+            video.src = '';
+            video.load();
+            
+            resolve(dataUrl);
+          } catch (error) {
+            reject(error);
+          }
+        }
       };
 
       video.src = videoUrl;
@@ -667,13 +737,43 @@ export class VideoProcessingService {
 
     console.log('VideoProcessingService: Starting clip generation for job', jobId, scenes.length, 'scenes');
     
+    // Validate scenes before processing
+    const validScenes = scenes.filter(scene => {
+      const isValid = scene && 
+        typeof scene.startTime === 'number' && 
+        typeof scene.endTime === 'number' && 
+        typeof scene.duration === 'number' &&
+        !isNaN(scene.startTime) && 
+        !isNaN(scene.endTime) && 
+        !isNaN(scene.duration) &&
+        scene.startTime >= 0 &&
+        scene.endTime > scene.startTime &&
+        scene.duration > 0;
+      
+      if (!isValid) {
+        console.warn('VideoProcessingService: Skipping invalid scene for clip generation', scene);
+      }
+      
+      return isValid;
+    });
+    
+    if (validScenes.length === 0) {
+      console.error('VideoProcessingService: No valid scenes for clip generation');
+      return;
+    }
+    
     // Update job with new scenes
-    job.scenes = scenes;
+    job.scenes = validScenes;
     job.clips = [];
     
     // Filter platforms to only include selected ones
     const allPresets = this.getPlatformPresets();
     const selectedPresets = allPresets.filter(preset => platforms.includes(preset.id));
+    
+    if (selectedPresets.length === 0) {
+      console.error('VideoProcessingService: No valid platforms selected');
+      return;
+    }
     
     // Generate clips for selected platforms only
     this.generateClipsForPlatforms(job, selectedPresets);
