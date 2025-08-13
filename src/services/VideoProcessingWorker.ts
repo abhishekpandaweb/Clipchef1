@@ -596,6 +596,6 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 // Signal that worker is ready
 self.postMessage({
   id: 'init',
-  type: 'success',
+  type: 'ready',
   data: { ready: true }
 });
