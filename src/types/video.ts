@@ -112,6 +112,23 @@ export interface ClipGenerationJob {
   completedAt?: Date;
 }
 
+export interface EngagementFactors {
+  hookStrength: number;
+  visualAppeal: number;
+  pacing: number;
+  contentDensity: number;
+  emotionalImpact: number;
+  viralPotential: number;
+}
+
+export interface CropStrategy {
+  type: 'center' | 'smart' | 'face-tracking' | 'action-following' | 'speaker-focus';
+  focusPoints: { x: number; y: number; weight: number }[];
+  zoomLevel: number;
+  panDirection?: 'left' | 'right' | 'up' | 'down' | 'none';
+  trackingEnabled: boolean;
+}
+
 export interface ProcessingStep {
   id: string;
   name: string;

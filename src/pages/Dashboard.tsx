@@ -7,11 +7,13 @@ import SceneDetectionPanel from '../components/SceneDetectionPanel';
 import AIModelPanel from '../components/AIModelPanel';
 import AdvancedSceneDetectionPanel from '../components/AdvancedSceneDetectionPanel';
 import PlatformOptimizationPanel from '../components/PlatformOptimizationPanel';
+import ClipGenerationPanel from '../components/ClipGenerationPanel';
 import Breadcrumb from '../components/Breadcrumb';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../contexts/ToastContext';
 import { VideoProcessingJob, VideoFile, DetectedScene, SceneDetectionConfig } from '../types';
+import { GeneratedClip } from '../services/ClipGenerator';
 import { Video, Upload, Scissors, Brain, Target, Zap, X, Settings, CheckCircle } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -30,6 +32,7 @@ export const Dashboard: React.FC = () => {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['tiktok', 'instagram-reels']);
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentStep, setCurrentStep] = useState<'upload' | 'configure' | 'process' | 'results'>('upload');
+  const [generatedClips, setGeneratedClips] = useState<GeneratedClip[]>([]);
   const [sceneConfig, setSceneConfig] = useState<SceneDetectionConfig>({
     sensitivity: 'medium',
     algorithms: {
@@ -101,6 +104,17 @@ export const Dashboard: React.FC = () => {
         : [...prev, platformId]
     );
   };
+
+  const handleClipsGenerated = (clips: GeneratedClip[]) => {
+    setGeneratedClips(prev => [...prev, ...clips]);
+    setCurrentStep('results');
+    addToast({
+      type: 'success',
+      title: 'Clips Generated Successfully',
+      message: `Generated ${clips.length} optimized clips`
+    });
+  };
+
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/dashboard' }
   ];
@@ -308,14 +322,14 @@ export const Dashboard: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   Found {selectedJob.scenes.length} potential clips. Ready to generate platform-optimized videos?
                 </p>
-                <button
-                  onClick={() => handleGenerateClips(selectedJob.scenes, selectedPlatforms)}
-                  disabled={selectedPlatforms.length === 0}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 disabled:transform-none flex items-center space-x-2"
-                >
-                  <Zap className="h-5 w-5" />
-                  <span>Generate {selectedJob.scenes.length * selectedPlatforms.length} Clips</span>
-                </button>
+                
+                {/* Intelligent Clip Generation */}
+                <ClipGenerationPanel
+                  videoFile={selectedJob.videoFile.url ? await fetch(selectedJob.videoFile.url).then(r => r.blob()) : null}
+                  scenes={selectedJob.scenes}
+                  platforms={allPresets.filter(preset => selectedPlatforms.includes(preset.id))}
+                  onClipsGenerated={handleClipsGenerated}
+                />
               </div>
             )}
             
@@ -358,6 +372,56 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Generated Clips Results */}
+        {generatedClips.length > 0 && (
+          <div className="mt-12 bg-white dark:bg-gray-800 rounded-xl p-8">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              🎬 Generated Clips ({generatedClips.length})
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {generatedClips.map((clip) => (
+                <div key={clip.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <img
+                    src={clip.thumbnail}
+                    alt={`${clip.platform} clip`}
+                    className="w-full h-32 object-cover rounded mb-3"
+                  />
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {clip.platform.charAt(0).toUpperCase() + clip.platform.slice(1)}
+                      </span>
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 rounded-full">
+                        {Math.round(clip.qualityScore * 100)}% quality
+                      </span>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {Math.round(clip.duration)}s • {clip.metadata.width}×{clip.metadata.height}
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        const url = URL.createObjectURL(clip.blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${clip.platform}_clip_${Date.now()}.mp4`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Download Clip
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Help Section */}
         <div className="mt-12 bg-gray-100 dark:bg-gray-800 rounded-xl p-8">
@@ -439,4 +503,57 @@ export const Dashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  // Helper function to get all platform presets
+  const allPresets = [
+    {
+      id: 'tiktok',
+      name: 'tiktok',
+      displayName: 'TikTok',
+      aspectRatio: 9/16,
+      width: 1080,
+      height: 1920,
+      maxDuration: 60,
+      cropStrategy: 'face-tracking' as const,
+      audioRequired: true,
+      optimizations: {
+        hookDuration: 3,
+        engagementBoosts: ['auto-captions', 'trending-sounds', 'viral-effects'],
+        algorithmFriendly: true,
+        trendingFormats: ['quick-tips', 'before-after', 'storytelling'],
+        captionStyle: 'trendy' as const
+      },
+      contentGuidelines: {
+        preferredLength: 30,
+        idealPacing: 'fast' as const,
+        attentionSpan: 8,
+        viralElements: ['hooks', 'surprises', 'call-to-action']
+      }
+    },
+    {
+      id: 'instagram-reels',
+      name: 'instagram-reels',
+      displayName: 'Instagram Reels',
+      aspectRatio: 9/16,
+      width: 1080,
+      height: 1920,
+      maxDuration: 90,
+      cropStrategy: 'smart' as const,
+      audioRequired: true,
+      optimizations: {
+        hookDuration: 3,
+        engagementBoosts: ['trending-audio', 'hashtag-optimization', 'story-integration'],
+        algorithmFriendly: true,
+        trendingFormats: ['tutorials', 'behind-scenes', 'transformations'],
+        captionStyle: 'engaging' as const
+      },
+      contentGuidelines: {
+        preferredLength: 45,
+        idealPacing: 'fast' as const,
+        attentionSpan: 10,
+        viralElements: ['visual-appeal', 'trending-topics', 'shareability']
+      }
+    }
+    // Add other presets as needed
+  ];
 };
