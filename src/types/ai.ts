@@ -91,3 +91,25 @@ export interface MotionAnalysis {
     intensity: number;
   };
 }
+
+// Transcription types
+export interface TranscriptionCapabilities {
+  languages: string[];
+  maxDuration: number; // in seconds
+  supportsSpeakerDiarization: boolean;
+  supportsWordTimestamps: boolean;
+  accuracyRate: number; // 0-1
+}
+
+export interface CaptionStyle {
+  platform: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  color: string;
+  backgroundColor?: string;
+  position: 'top' | 'center' | 'bottom';
+  alignment: 'left' | 'center' | 'right';
+  maxLineLength: number;
+  lineBreakStrategy: 'word' | 'character' | 'smart';
+}

@@ -8,6 +8,7 @@ import AIModelPanel from '../components/AIModelPanel';
 import AdvancedSceneDetectionPanel from '../components/AdvancedSceneDetectionPanel';
 import PlatformOptimizationPanel from '../components/PlatformOptimizationPanel';
 import ClipGenerationPanel from '../components/ClipGenerationPanel';
+import WhisperTranscriptionPanel from '../components/WhisperTranscriptionPanel';
 import Breadcrumb from '../components/Breadcrumb';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -264,6 +265,19 @@ export const Dashboard: React.FC = () => {
             {/* AI Models */}
             <AIModelPanel />
             
+            {/* Whisper Transcription */}
+            <WhisperTranscriptionPanel
+              videoFile={videoFileBlob}
+              onTranscriptionComplete={(result) => {
+                console.log('Transcription completed:', result);
+                addToast({
+                  type: 'success',
+                  title: 'Transcription Complete',
+                  message: `Generated ${result.segments.length} segments with ${Math.round(result.averageConfidence * 100)}% accuracy`
+                });
+              }}
+            />
+            
             {/* Upload */}
             <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 p-6 transition-colors ${
               currentStep === 'upload' ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : 'border-gray-200 dark:border-gray-700'
@@ -465,6 +479,7 @@ export const Dashboard: React.FC = () => {
               <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                 <li>• Upload videos up to 500MB</li>
                 <li>• AI works best with clear audio</li>
+                <li>• Transcription supports 50+ languages</li>
                 <li>• Processing happens locally</li>
                 <li>• No internet needed after setup</li>
               </ul>
@@ -512,11 +527,11 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-3 mb-3">
               <Target className="h-8 w-8 text-green-600" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Platform Optimization
+                Smart Transcription
               </h3>
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-sm">
-              AI-powered optimization for TikTok, Instagram, YouTube Shorts, LinkedIn, and more with viral potential scoring.
+              Whisper.cpp powered transcription with 95%+ accuracy, speaker diarization, and automatic subtitle generation for all platforms.
             </p>
           </div>
         </div>
