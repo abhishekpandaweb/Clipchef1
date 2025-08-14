@@ -47,6 +47,7 @@ export const Dashboard: React.FC = () => {
     preserveContext: true,
     maintainNarrativeFlow: true
   });
+  const [videoFileBlob, setVideoFileBlob] = useState<Blob | null>(null);
 
   const selectedJob = selectedJobId ? jobs.find(job => job.id === selectedJobId) : null;
 
@@ -57,6 +58,25 @@ export const Dashboard: React.FC = () => {
     }
   }, [error, addToast]);
 
+  // Convert video URL to Blob for ClipGenerationPanel
+  useEffect(() => {
+    const convertVideoToBlob = async () => {
+      if (selectedJob?.videoFile.url) {
+        try {
+          const response = await fetch(selectedJob.videoFile.url);
+          const blob = await response.blob();
+          setVideoFileBlob(blob);
+        } catch (error) {
+          console.error('Failed to convert video URL to blob:', error);
+          setVideoFileBlob(null);
+        }
+      } else {
+        setVideoFileBlob(null);
+      }
+    };
+
+    convertVideoToBlob();
+  }, [selectedJob?.videoFile.url]);
   const handleFileUpload = async (files: VideoFile[]) => {
     try {
       setIsLoading(true);
@@ -325,7 +345,7 @@ export const Dashboard: React.FC = () => {
                 
                 {/* Intelligent Clip Generation */}
                 <ClipGenerationPanel
-                  videoFile={selectedJob.videoFile.url ? await fetch(selectedJob.videoFile.url).then(r => r.blob()) : null}
+                  videoFile={videoFileBlob}
                   scenes={selectedJob.scenes}
                   platforms={allPresets.filter(preset => selectedPlatforms.includes(preset.id))}
                   onClipsGenerated={handleClipsGenerated}
