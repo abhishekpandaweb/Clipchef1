@@ -48,20 +48,12 @@ export const useVideoProcessor = (): UseVideoProcessorReturn => {
     const initProcessor = async () => {
       try {
         processorRef.current = new VideoProcessingModule();
-        
-        // Wait for processor to be ready
-        const checkReady = () => {
-          if (processorRef.current?.isReady()) {
-            setIsReady(true);
-            setError(null);
-          } else {
-            setTimeout(checkReady, 100);
-          }
-        };
-        
-        checkReady();
+        await processorRef.current.init();
+        setIsReady(true);
+        setError(null);
       } catch (err) {
-        setError(`Failed to initialize video processor: ${err}`);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(`Failed to initialize video processor: ${errorMessage}`);
         setIsReady(false);
       }
     };

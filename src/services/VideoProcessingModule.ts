@@ -75,7 +75,15 @@ export class VideoProcessingModule {
   private operationCounter = 0;
 
   constructor() {
-    this.initializeWorker();
+    // Initialization moved to explicit init() method
+  }
+
+  /**
+   * Initialize the video processing module
+   * Must be called before using any other methods
+   */
+  async init(): Promise<void> {
+    await this.initializeWorker();
   }
 
   private async initializeWorker(): Promise<void> {
@@ -93,8 +101,9 @@ export class VideoProcessingModule {
       await this.sendWorkerMessage('init', {});
       this.isInitialized = true;
     } catch (error) {
-      console.error('Failed to initialize VideoProcessingModule:', error);
-      throw new Error('Failed to initialize video processing');
+      const errorMessage = `Failed to initialize VideoProcessingModule: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(errorMessage, error);
+      throw new Error(errorMessage);
     }
   }
 
