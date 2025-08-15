@@ -94,6 +94,23 @@ export class WhisperTranscriptionService {
       this.worker.onmessage = this.handleWorkerMessage.bind(this);
       this.worker.onerror = this.handleWorkerError.bind(this);
 
+      // Wait for worker to be ready before sending init command
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Worker initialization timeout'));
+        }, 30000);
+
+        const readyHandler = (event: MessageEvent) => {
+          if (event.data.type === 'ready') {
+            clearTimeout(timeout);
+            this.worker!.removeEventListener('message', readyHandler);
+            resolve();
+          }
+        };
+
+        this.worker!.addEventListener('message', readyHandler);
+      });
+
       // Initialize whisper model in worker
       await this.sendWorkerMessage('init', { modelSize });
       this.currentModel = modelSize;
@@ -141,7 +158,7 @@ export class WhisperTranscriptionService {
   }
 
   private async sendWorkerMessage(type: string, data: any, progressCallback?: (progress: TranscriptionProgress) => void): Promise<any> {
-    if (!this.worker || !this.isInitialized) {
+    if (!this.worker) {
       throw new Error('Whisper transcription service not initialized');
     }
 

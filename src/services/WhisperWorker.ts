@@ -2,6 +2,9 @@
 interface WorkerMessage {
   id: string;
   type: 'init' | 'transcribe' | 'detectLanguage' | 'switchModel' | 'cleanup';
+// Signal that worker is ready to receive messages
+self.postMessage({ type: 'ready' });
+
   data: any;
 }
 
