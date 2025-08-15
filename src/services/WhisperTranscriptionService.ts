@@ -70,6 +70,7 @@ export class WhisperTranscriptionService {
   private worker: Worker | null = null;
   private isInitialized = false;
   private currentModel: string | null = null;
+  private workerReadyPromise: Promise<void> | null = null;
   private pendingOperations = new Map<string, {
     resolve: (value: any) => void;
     reject: (error: Error) => void;
@@ -82,6 +83,22 @@ export class WhisperTranscriptionService {
   }
 
   async initialize(modelSize: 'base' | 'small' | 'medium' = 'base'): Promise<void> {
+    // If already initializing, return the existing promise
+    if (this.workerReadyPromise) {
+      return this.workerReadyPromise;
+    }
+
+    // If already initialized with the same model, return immediately
+    if (this.isInitialized && this.currentModel === modelSize) {
+      return;
+    }
+
+    // Create and store the initialization promise
+    this.workerReadyPromise = this.initializeWorker(modelSize);
+    return this.workerReadyPromise;
+  }
+
+  private async initializeWorker(modelSize: 'base' | 'small' | 'medium'): Promise<void> {
     try {
       console.log('WhisperTranscriptionService: Starting initialization with model:', modelSize);
       
@@ -119,6 +136,8 @@ export class WhisperTranscriptionService {
       console.log('WhisperTranscriptionService: Initialization complete');
     } catch (error) {
       console.error('WhisperTranscriptionService: Initialization failed:', error);
+      // Reset the promise on failure to allow retry
+      this.workerReadyPromise = null;
       throw new Error(`Failed to initialize Whisper transcription: ${error}`);
     }
   }
@@ -492,6 +511,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       this.worker = null;
       this.isInitialized = false;
       this.currentModel = null;
+      this.workerReadyPromise = null;
       this.pendingOperations.clear();
     }
   }
