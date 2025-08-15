@@ -308,3 +308,5 @@ self.postMessage({
   id: 'init',
   type: 'ready',
   data: { ready: true }
+}
+)
